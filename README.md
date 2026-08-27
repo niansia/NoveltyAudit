@@ -37,7 +37,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Canonical DOI/arXiv/title normalization and preprint-to-publisher deduplication.
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
-- Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with endpoint coverage observations, an explicit observation window, a high-citation base-rate guard, textual promotion gates, and separate post-cutoff landscape bridges.
+- Multi-provider backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with provider-attributed endpoint coverage, a pre-retrieval observation-window diagnostic, a sensitivity-checked high-citation guard, textual promotion gates, and separate post-cutoff landscape bridges.
 - Public Tier-2 PDF/HTML/text acquisition with DNS-pinned public-address connections, actual-peer verification, response-size limits, extracted-text files, cryptographic hashes, and evidence-to-acquisition validation.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
@@ -89,6 +89,10 @@ python scholarly-novelty-audit/scripts/cli.py dates \
   --cutoff 2025-09-18 \
   --output run/dated.json
 
+python scholarly-novelty-audit/scripts/cli.py graph-preflight \
+  --papers run/dated.json --paper-a W123 --paper-b W456 \
+  --cutoff 2025-09-18 --output run/graph-preflight.json
+
 python scholarly-novelty-audit/scripts/cli.py expand-graph \
   --papers run/dated.json --paper-a W123 --paper-b W456 \
   --cutoff 2025-09-18 --limit 100 --output run/expanded.json
@@ -99,7 +103,7 @@ python scholarly-novelty-audit/scripts/cli.py fetch-fulltext \
 
 python scholarly-novelty-audit/scripts/cli.py bridge \
   --papers run/expanded.json --paper-a W123 --paper-b W456 \
-  --cutoff 2025-09-18 --high-citation-threshold 500 \
+  --cutoff 2025-09-18 \
   --output run/bridges.json
 
 python scholarly-novelty-audit/scripts/cli.py verify-citations \
@@ -112,7 +116,7 @@ python scholarly-novelty-audit/scripts/cli.py export \
   --input run/report.verified.json --format html --output run/report.html
 ```
 
-The bridge threshold above is only an example. Use a documented, field-calibrated value; omit it when none is defensible, in which case co-citation remains `UNASSESSED` and cannot strengthen the verdict.
+The bridge command defaults to a 500-citation operational guard. The 82-case exploratory sensitivity table was comparatively flat across thresholds 50–1,000 (8.47%–12.12% pair rates), so the bundled policy is labeled `SENSITIVITY_CHECKED`, not universally field-calibrated. Override it only with a documented, preregistered field policy. Missing endpoint citation counts still make co-citation `UNASSESSED`.
 
 The host agent gets at most three structured-report attempts. Reusing the same assembly state appends a sequential hash and validation history bound to the immutable `audit_id`, claim ID, claim-freeze hash, and cutoff; a state from another audit is rejected. Exhaustion therefore cannot be asserted without the preceding attempts for that same audit. `report-attempt` returns `RETRY_REQUIRED` with exact validation failures before the budget is exhausted; an invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit.
 
@@ -122,9 +126,11 @@ The MPS search bound is always `K ≤ 3`. “None found” means no qualifying e
 
 Every endpoint pair in every recomputed multi-paper MPS must have a `COMPLETE` citation-graph expansion record. If any pair is missing or `PARTIAL`, the validator permits only `INCONCLUSIVE` and requires the deterministic search-gap marker `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>`. Consequently, `FRAGMENTED_PRECEDENT` means the relevant pairs were actually expanded and no qualifying historical bridge was verified—not merely that no bridge happened to be present in the initial candidate pool.
 
-Graph providers return an explicit exhaustion signal and continuation token. A call is `possibly_truncated` only when the provider traversal is not exhausted; `returned_count == limit` can remain complete when the provider also proves there is no next page. Non-exhausted calls become `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility.
+Before network retrieval, `graph-preflight` computes the pair's observation window. A `SHORT` result warns that a zero bridge finding will be low-information; it does not skip retrieval. By default, `expand-graph` unions backward references from every available OpenAlex and Semantic Scholar endpoint ID and unions forward candidates from every namespace shared by both endpoints. Every call remains provider-attributed. If no provider namespace spans both endpoints, available backward evidence is preserved but the expansion becomes `PARTIAL` instead of raising or claiming a complete zero.
 
-Every expansion also records `endpoint_reference_observations`, `observation_window_days`, historical versus landscape candidate IDs, and a deterministic `negative_result_scope`. An empty provider bibliography is a coverage caveat, not evidence that a paper has no references; missing or post-cutoff endpoint dates get separate uninterpretable scopes, and a short window says that co-citation may not yet have had time to form. Therefore “no bridge” can only mean no bridge was verified inside the stated complete provider snapshot and observation window. It is never silent reassurance.
+Graph providers return an explicit exhaustion signal and continuation token. A call is `possibly_truncated` only when the provider traversal is not exhausted; `returned_count == limit` can remain complete when the provider also proves there is no next page. Non-exhausted calls become `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion scans the complete raw reference-ID list, and Semantic Scholar follows graph `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility.
+
+Every expansion also records per-provider `endpoint_reference_observations`, `observation_window_days`, `observation_window_status`, historical versus landscape candidate IDs, and a deterministic `negative_result_scope`. An empty provider bibliography is a coverage caveat, not evidence that a paper has no references; missing or post-cutoff endpoint dates get separate uninterpretable scopes, and a short window says that co-citation may not yet have had time to form. Therefore “no bridge” can only mean no bridge was verified inside the stated complete provider union and observation window. It is never silent reassurance.
 
 ## Verdicts
 
@@ -161,9 +167,9 @@ Live smoke tests may encounter provider rate limits; those failures are expected
 
 The deterministic core is implemented. The next growth asset is a licensed set of end-to-end reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
 
-External validation is not complete, but bridge prevalence is no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two in 23 cases (28.05% conservative lower bound). Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%); 84.72% of complete pairs had less than 18 months of observation, and OpenAlex exposed nonempty references for only 25.30% of named priors. Bridge Evidence is therefore positioned as a conditional positive signal for mature, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
+External validation is not complete, but bridge base rates are no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two in 23 cases (28.05% conservative lower bound on multi-prior mentions—not composition objections). `POTENTIAL_MISSED_MENTIONS` remained for 23 cases. Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%; exact 95% binomial interval 6.41%–47.64%), so this supports a minority signal in this sample, not a precise population rate. OpenAlex alone exposed nonempty references for 25.30% of named priors; observed Semantic Scholar fallback raises the measured nonempty backward-coverage lower bound to 56/83 (67.47%). Bridge Evidence remains a conditional positive signal for mature, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
 
-The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md).
+The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md). External data and derived-aggregate notices are separated in [data licenses](docs/DATA_LICENSES.md).
 
 ## Contributing
 

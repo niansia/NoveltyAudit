@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import time
@@ -686,7 +687,55 @@ def zero_interpretation(pair: dict[str, Any], priors: list[dict[str, Any]]) -> s
     return "ZERO_UNDER_MEASURED_PROVIDER_SNAPSHOT"
 
 
-def summarize(cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int) -> dict[str, Any]:
+def clopper_pearson_interval(successes: int, total: int, confidence: float = 0.95) -> dict[str, Any] | None:
+    """Return an exact two-sided binomial interval using deterministic bisection."""
+    if total <= 0 or not 0 <= successes <= total or not 0 < confidence < 1:
+        return None
+    alpha_tail = (1.0 - confidence) / 2.0
+
+    def cdf(k: int, probability: float) -> float:
+        return sum(
+            math.comb(total, value)
+            * probability ** value
+            * (1.0 - probability) ** (total - value)
+            for value in range(k + 1)
+        )
+
+    if successes == 0:
+        lower = 0.0
+    else:
+        lo, hi = 0.0, 1.0
+        for _ in range(80):
+            midpoint = (lo + hi) / 2.0
+            tail = 1.0 - cdf(successes - 1, midpoint)
+            if tail < alpha_tail:
+                lo = midpoint
+            else:
+                hi = midpoint
+        lower = (lo + hi) / 2.0
+    if successes == total:
+        upper = 1.0
+    else:
+        lo, hi = 0.0, 1.0
+        for _ in range(80):
+            midpoint = (lo + hi) / 2.0
+            if cdf(successes, midpoint) > alpha_tail:
+                lo = midpoint
+            else:
+                hi = midpoint
+        upper = (lo + hi) / 2.0
+    return {
+        "method": "CLOPPER_PEARSON_EXACT",
+        "confidence": confidence,
+        "lower": round(lower, 4),
+        "upper": round(upper, 4),
+    }
+
+
+def summarize(
+    cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int,
+    snapshot_date: str | None = None,
+) -> dict[str, Any]:
     all_priors = [prior for case in cases for prior in case["priors"]]
     all_pairs = [pair for case in cases for pair in case["pairs"]]
     complete_pairs = [pair for pair in all_pairs if pair["status"] == "COMPLETE"]
@@ -723,17 +772,13 @@ def summarize(cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int)
         }
 
     case_rate = ratio(len(bridge_cases), len(complete_multi_cases))
-    if case_rate is None:
-        signal = "INSUFFICIENT_COMPLETE_CASES"
-    elif case_rate >= 0.30:
-        signal = "BRIDGE_MATERIAL_SUBSET"
-    elif case_rate <= 0.05:
-        signal = "BRIDGE_LOW_BASE_RATE"
-    else:
-        signal = "BRIDGE_CONDITIONAL_SUBSET"
+    sensitivity_rates = [
+        item["pair_bridge_base_rate"] for item in citation_sensitivity.values()
+        if item["pair_bridge_base_rate"] is not None
+    ]
     return {
-        "schema_version": "1.0",
-        "snapshot_date": datetime.now(timezone.utc).date().isoformat(),
+        "schema_version": "1.1",
+        "snapshot_date": snapshot_date or datetime.now(timezone.utc).date().isoformat(),
         "source": {"dataset_id": DATASET_ID, "license": DATASET_LICENSE,
                    "archive_md5": archive_md5},
         "method": {
@@ -750,7 +795,7 @@ def summarize(cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int)
             "extraction_status_counts": dict(sorted(extraction_counts.items())),
             "cases_with_detected_named_priors": sum(case["named_prior_count"] > 0 for case in cases),
             "cases_with_two_or_more_named_priors": len(multi_cases),
-            "composition_case_prevalence_lower_bound": ratio(len(multi_cases), len(cases)),
+            "multi_prior_mention_prevalence_lower_bound": ratio(len(multi_cases), len(cases)),
         },
         "prior_resolution": {
             "named_priors": len(all_priors),
@@ -759,6 +804,10 @@ def summarize(cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int)
             "openalex_reference_coverage_status_counts": dict(sorted(ref_counts.items())),
             "openalex_nonempty_reference_rate": ratio(ref_counts["NONEMPTY"], len(all_priors)),
             "confirmed_cross_provider_gap_rate": ratio(ref_counts["CONFIRMED_CROSS_PROVIDER_GAP"], len(all_priors)),
+            "observed_nonempty_backward_coverage_with_s2_fallback_count": ref_counts["NONEMPTY"] + ref_counts["CONFIRMED_CROSS_PROVIDER_GAP"],
+            "observed_nonempty_backward_coverage_with_s2_fallback_rate": ratio(
+                ref_counts["NONEMPTY"] + ref_counts["CONFIRMED_CROSS_PROVIDER_GAP"], len(all_priors)
+            ),
         },
         "age": {
             "dated_priors": len(dated_priors),
@@ -774,16 +823,30 @@ def summarize(cases: list[dict[str, Any]], *, archive_md5: str, paid_calls: int)
             "complete_pairs": len(complete_pairs),
             "pairs_with_pre_cutoff_bridge": len(bridge_pairs),
             "pair_bridge_base_rate": ratio(len(bridge_pairs), len(complete_pairs)),
+            "pair_bridge_base_rate_exact_95pct_interval": clopper_pearson_interval(
+                len(bridge_pairs), len(complete_pairs)
+            ),
             "complete_multi_prior_cases": len(complete_multi_cases),
             "cases_with_pre_cutoff_bridge": len(bridge_cases),
             "case_bridge_base_rate": case_rate,
+            "case_bridge_base_rate_exact_95pct_interval": clopper_pearson_interval(
+                len(bridge_cases), len(complete_multi_cases)
+            ),
             "distinct_pre_cutoff_bridges_across_cases": sum(case["pre_cutoff_distinct_bridge_count"] for case in complete_multi_cases),
             "negative_interpretation_counts": dict(sorted(zero_counts.items())),
             "citation_base_rate_sensitivity": citation_sensitivity,
-            "product_signal": signal,
+            "operational_citation_guard": {
+                "status": "SENSITIVITY_CHECKED",
+                "high_citation_threshold": 500,
+                "observed_threshold_range": [50, 1000],
+                "observed_pair_rate_range": [min(sensitivity_rates), max(sensitivity_rates)] if sensitivity_rates else None,
+                "interpretation": "The observed result was insensitive across the tested range; 500 is an operational guard, not universal field calibration.",
+            },
         },
         "limitations": [
-            "Composition prevalence is a conservative lower bound from deterministic explicit-mention linking.",
+            "The multi-prior mention rate is a conservative lower bound on explicit reviewer mentions, not measured prevalence of compositional novelty objections.",
+            "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so even the multi-prior mention lower bound can be materially low.",
+            "The 4/18 case bridge result has a wide exact binomial interval; it supports a minority signal in this sample, not a precise population prevalence.",
             "OpenAlex reference coverage is a provider observation, not a claim that a paper lacks a bibliography.",
             "Bridge dates use OpenAlex work publication_date; unresolved version history can undercount historical bridges.",
             "A zero is never pooled with partial queries, unresolved endpoints or dates, or unreported observation-window caveats.",
@@ -800,6 +863,8 @@ def run(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, Any]]
     submission_date = parse_date(args.submission_date)
     if args.submission_date and submission_date is None:
         raise ValueError("--submission-date must use YYYY-MM-DD")
+    if parse_date(args.snapshot_date) is None:
+        raise ValueError("--snapshot-date must use YYYY-MM-DD")
     cases: list[dict[str, Any]] = []
     for case_id in dataset.cases():
         annotation = dataset.annotation(case_id)
@@ -867,7 +932,10 @@ def run(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, Any]]
         key.startswith(("openalex:search:", "openalex:bridge:"))
         for key in cache.data
     )
-    summary = summarize(cases, archive_md5=archive_md5, paid_calls=paid_query_count)
+    summary = summarize(
+        cases, archive_md5=archive_md5, paid_calls=paid_query_count,
+        snapshot_date=args.snapshot_date,
+    )
     return cases, summary
 
 
@@ -879,6 +947,10 @@ def main() -> int:
     parser.add_argument("--cache", required=True, help="Resumable provider response cache")
     parser.add_argument("--max-paid-calls", type=int, default=100)
     parser.add_argument("--max-pair-results", type=int, default=1000)
+    parser.add_argument(
+        "--snapshot-date", required=True,
+        help="Fixed provider-snapshot date recorded in the aggregate (YYYY-MM-DD)",
+    )
     parser.add_argument(
         "--submission-date", default="2024-10-01",
         help="Dataset-wide submission deadline used as a target-date ceiling (YYYY-MM-DD)",

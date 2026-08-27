@@ -24,3 +24,31 @@ def test_bridge_is_a_first_class_cli_command(tmp_path):
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["graph_bridges"][0]["type"] == "CO_CITATION"
     assert payload["textual_bridge_required"] is True
+    assert payload["bridge_policy"]["status"] == "SENSITIVITY_CHECKED"
+    assert payload["bridge_policy"]["high_citation_threshold"] == 500
+
+
+def test_custom_bridge_threshold_requires_a_policy_source(tmp_path):
+    source = tmp_path / "papers.json"
+    output = tmp_path / "bridges.json"
+    source.write_text(json.dumps([
+        {"id": "A", "references": [], "citation_count": 1, "cutoff_status": "ELIGIBLE"},
+        {"id": "B", "references": [], "citation_count": 2, "cutoff_status": "ELIGIBLE"},
+    ]), encoding="utf-8")
+    result = subprocess.run([
+        sys.executable, str(ROOT / "scripts" / "cli.py"), "bridge",
+        "--papers", str(source), "--paper-a", "A", "--paper-b", "B",
+        "--high-citation-threshold", "999", "--output", str(output),
+    ], capture_output=True, text=True)
+    assert result.returncode == 50
+    assert "requires --bridge-policy-source" in result.stderr
+
+    result = subprocess.run([
+        sys.executable, str(ROOT / "scripts" / "cli.py"), "bridge",
+        "--papers", str(source), "--paper-a", "A", "--paper-b", "B",
+        "--high-citation-threshold", "999",
+        "--bridge-policy-source", "Preregistered field protocol DOI:10.0000/example",
+        "--output", str(output),
+    ], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(output.read_text(encoding="utf-8"))["bridge_policy"]["status"] == "CALIBRATED"

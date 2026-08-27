@@ -406,7 +406,7 @@ def test_partial_graph_expansion_cannot_support_a_conclusive_verdict(valid_repor
     expansion = report["search"]["graph_expansions"][0]
     expansion["status"] = "PARTIAL"
     expansion["partial_reasons"] = ["PROVIDER_FAILURE"]
-    expansion["failures"] = [{"direction": "FORWARD", "anchor_paper_id": "A", "detail": "rate limited"}]
+    expansion["failures"] = [{"provider": "openalex", "direction": "FORWARD", "anchor_paper_id": "A", "detail": "rate limited"}]
     report["search"]["gaps"].append("GRAPH_EXPANSION_INCOMPLETE:A:B")
     errors = validate_report(report)
     assert any("graph expansion obligation incomplete" in error for error in errors)
@@ -536,13 +536,16 @@ def test_title_author_bibliography_mapping_is_independently_reproduced(valid_rep
 
 def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
     report = deepcopy(valid_report)
-    expansion_id = "EXPAND-GRAPH:openalex:A:B"
+    expansion_id = "EXPAND-GRAPH:multi-provider:A:B"
     report["papers"][2]["found_by_query_ids"].append(expansion_id)
     report["search"]["graph_expansions"] = [{
         "expansion_id": expansion_id,
         "status": "COMPLETE",
         "partial_reasons": [],
-        "provider": "openalex",
+        "provider": "multi-provider",
+        "providers": ["openalex", "semantic-scholar"],
+        "provider_selection": "AUTO_AVAILABLE",
+        "omitted_providers": [],
         "paper_ids": ["A", "B"],
         "cutoff": "2025-09-18",
         "temporal_recall_backstop": True,
@@ -550,20 +553,23 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [
-            {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
-            {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
-            {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
-            {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"provider": "openalex", "direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"provider": "openalex", "direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"provider": "semantic-scholar", "direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"provider": "openalex", "direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"provider": "openalex", "direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],
         "historical_bridge_candidate_ids": ["C"],
         "landscape_bridge_candidate_ids": [],
         "endpoint_reference_observations": [
-            {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
-            {"paper_id": "B", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
+            {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER", "provider_observations": [{"provider": "openalex", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]},
+            {"paper_id": "B", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER", "provider_observations": [{"provider": "openalex", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}, {"provider": "semantic-scholar", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]},
         ],
         "observation_window_days": 900,
+        "observation_window_status": "MATURE",
+        "observation_window_threshold_days": 548,
         "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
         "new_paper_ids": [],
@@ -574,6 +580,52 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
     report["search"].pop("graph_expansions")
     assert any("unknown discovery query IDs" in error for error in validate_report(report))
 
+
+def test_multi_provider_expansion_cannot_hide_a_declared_provider_route(valid_report):
+    report = deepcopy(valid_report)
+    expansion = report["search"]["graph_expansions"][0]
+    expansion["calls"] = [
+        call for call in expansion["calls"] if call["provider"] != "semantic-scholar"
+    ]
+    expansion["endpoint_reference_observations"][1]["provider_observations"] = [
+        item for item in expansion["endpoint_reference_observations"][1]["provider_observations"]
+        if item["provider"] != "semantic-scholar"
+    ]
+    errors = validate_report(report)
+    assert any("backward routes disagree" in error for error in errors)
+
+
+def test_explicit_single_provider_scope_cannot_claim_complete_union(valid_report):
+    report = deepcopy(valid_report)
+    expansion = report["search"]["graph_expansions"][0]
+    expansion["provider"] = "openalex"
+    expansion["providers"] = ["openalex"]
+    expansion["provider_selection"] = "EXPLICIT_OVERRIDE"
+    expansion["omitted_providers"] = ["semantic-scholar"]
+    expansion["calls"] = [
+        call for call in expansion["calls"] if call["provider"] == "openalex"
+    ]
+    expansion["endpoint_reference_observations"][1]["provider_observations"] = [
+        item for item in expansion["endpoint_reference_observations"][1]["provider_observations"]
+        if item["provider"] == "openalex"
+    ]
+    errors = validate_report(report)
+    assert any("partial_reasons disagree" in error for error in errors)
+    assert any("COMPLETE graph expansion" in error for error in errors)
+
+
+def test_observation_window_status_cannot_be_relabelled_as_mature(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["graph_expansions"][0]["observation_window_status"] = "SHORT"
+    errors = validate_report(report)
+    assert any("observation_window_status is inconsistent" in error for error in errors)
+
+
+def test_sensitivity_checked_policy_cannot_swap_in_an_undocumented_threshold(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["bridge_policy"]["high_citation_threshold"] = 999
+    errors = validate_report(report)
+    assert any("documented v0.3.1 operational guard" in error for error in errors)
 
 def test_graph_negative_diagnostics_are_recomputed(valid_report):
     report = deepcopy(valid_report)

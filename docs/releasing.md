@@ -2,7 +2,7 @@
 
 NoveltyAudit is distributed as an Agent Skill directory, not as an importable PyPI library. The root `pyproject.toml` provides project metadata and test configuration; setuptools package discovery is explicitly disabled so ignored local work cannot enter a wheel.
 
-Build the installable runtime ZIP with the allowlist-based builder. It includes the repository's complete Apache-2.0 `LICENSE` plus `SKILL.md`, `agents/`, `assets/`, `references/`, `schemas/`, `scripts/`, and `requirements.txt`; tests, benchmarks, caches, temporary scans, and repository metadata are excluded. The build is byte-for-byte deterministic and emits a SHA-256 sidecar.
+Build the installable runtime ZIP with the allowlist-based builder. It includes the repository's complete Apache-2.0 `LICENSE` plus `SKILL.md`, `agents/`, `assets/`, `references/`, `schemas/`, `scripts/`, and `requirements.txt`; tests, benchmarks, caches, temporary scans, and repository metadata are excluded. The build is byte-for-byte deterministic and emits a SHA-256 sidecar with an explicit LF line ending on every platform.
 
 ```bash
 python tools/build_runtime_bundle.py \

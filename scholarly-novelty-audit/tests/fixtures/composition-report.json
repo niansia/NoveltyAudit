@@ -115,10 +115,13 @@
     ],
     "graph_expansions": [
       {
-        "expansion_id": "EXPAND-GRAPH:openalex:A:B",
+        "expansion_id": "EXPAND-GRAPH:multi-provider:A:B",
         "status": "COMPLETE",
         "partial_reasons": [],
-        "provider": "openalex",
+        "provider": "multi-provider",
+        "providers": ["openalex", "semantic-scholar"],
+        "provider_selection": "AUTO_AVAILABLE",
+        "omitted_providers": [],
         "paper_ids": ["A", "B"],
         "cutoff": "2025-09-18",
         "temporal_recall_backstop": true,
@@ -126,20 +129,23 @@
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [
-          {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
-          {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
-          {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
-          {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false}
+          {"provider": "openalex", "direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"provider": "openalex", "direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"provider": "semantic-scholar", "direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"provider": "openalex", "direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"provider": "openalex", "direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false}
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],
         "historical_bridge_candidate_ids": ["C"],
         "landscape_bridge_candidate_ids": [],
         "endpoint_reference_observations": [
-          {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
-          {"paper_id": "B", "provider_returned_count": 1, "status": "NONEMPTY"}
+          {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER", "provider_observations": [{"provider": "openalex", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]},
+          {"paper_id": "B", "provider_returned_count": 1, "status": "NONEMPTY", "provider_observations": [{"provider": "openalex", "returned_count": 1, "status": "NONEMPTY"}, {"provider": "semantic-scholar", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]}
         ],
         "observation_window_days": 900,
+        "observation_window_status": "MATURE",
+        "observation_window_threshold_days": 548,
         "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
         "new_paper_ids": []
@@ -151,7 +157,7 @@
       {"id": "critical-facets-multi-family", "status": "COMPLETE", "detail": "Each critical facet was covered by multiple query families."},
       {"id": "composition-bridge", "status": "COMPLETE", "detail": "A dedicated bridge query was executed."}
     ],
-    "bridge_policy": {"status": "UNCONFIGURED", "high_citation_threshold": null, "source": "No calibrated field-specific threshold is available for this fixture."},
+    "bridge_policy": {"status": "SENSITIVITY_CHECKED", "high_citation_threshold": 500, "source": "TUdatalib 82-case exploratory snapshot dated 2026-08-27: pair bridge rates were 8.47%-12.12% across endpoint thresholds 50, 100, 250, 500, and 1000. The 500-citation default is an operational base-rate guard, not a universal field calibration or performance claim."},
     "coverage_derivation": {
       "level": "BROAD",
       "scope": "PROTOCOL_EXECUTION_NOT_RECALL",

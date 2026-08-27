@@ -16,6 +16,12 @@
   },
   "bridges": {
     "case_bridge_base_rate": 0.2222,
+    "case_bridge_base_rate_exact_95pct_interval": {
+      "confidence": 0.95,
+      "lower": 0.0641,
+      "method": "CLOPPER_PEARSON_EXACT",
+      "upper": 0.4764
+    },
     "cases_with_pre_cutoff_bridge": 4,
     "citation_base_rate_sensitivity": {
       "100": {
@@ -56,16 +62,34 @@
       "ZERO_WITH_SHORT_OBSERVATION_WINDOW": 1,
       "ZERO_WITH_SHORT_WINDOW_AND_COVERAGE_CAVEAT": 56
     },
+    "operational_citation_guard": {
+      "high_citation_threshold": 500,
+      "interpretation": "The observed result was insensitive across the tested range; 500 is an operational guard, not universal field calibration.",
+      "observed_pair_rate_range": [
+        0.0847,
+        0.1212
+      ],
+      "observed_threshold_range": [
+        50,
+        1000
+      ],
+      "status": "SENSITIVITY_CHECKED"
+    },
     "pair_bridge_base_rate": 0.1667,
-    "pairs_with_pre_cutoff_bridge": 12,
-    "product_signal": "BRIDGE_CONDITIONAL_SUBSET"
+    "pair_bridge_base_rate_exact_95pct_interval": {
+      "confidence": 0.95,
+      "lower": 0.0892,
+      "method": "CLOPPER_PEARSON_EXACT",
+      "upper": 0.273
+    },
+    "pairs_with_pre_cutoff_bridge": 12
   },
   "case_coverage": {
     "all_cases_represented": true,
     "annotated_cases": 82,
     "cases_with_detected_named_priors": 37,
     "cases_with_two_or_more_named_priors": 23,
-    "composition_case_prevalence_lower_bound": 0.2805,
+    "multi_prior_mention_prevalence_lower_bound": 0.2805,
     "extraction_status_counts": {
       "EXTRACTED": 37,
       "NO_EXPLICIT_WORK_DETECTED": 22,
@@ -73,7 +97,9 @@
     }
   },
   "limitations": [
-    "Composition prevalence is a conservative lower bound from deterministic explicit-mention linking.",
+    "The multi-prior mention rate is a conservative lower bound on explicit reviewer mentions, not measured prevalence of compositional novelty objections.",
+    "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so even the multi-prior mention lower bound can be materially low.",
+    "The 4/18 case bridge result has a wide exact binomial interval; it supports a minority signal in this sample, not a precise population prevalence.",
     "OpenAlex reference coverage is a provider observation, not a claim that a paper lacks a bibliography.",
     "Bridge dates use OpenAlex work publication_date; unresolved version history can undercount historical bridges.",
     "A zero is never pooled with partial queries, unresolved endpoints or dates, or unreported observation-window caveats."
@@ -89,6 +115,8 @@
   "prior_resolution": {
     "confirmed_cross_provider_gap_rate": 0.4217,
     "named_priors": 83,
+    "observed_nonempty_backward_coverage_with_s2_fallback_count": 56,
+    "observed_nonempty_backward_coverage_with_s2_fallback_rate": 0.6747,
     "openalex_nonempty_reference_rate": 0.253,
     "openalex_reference_coverage_status_counts": {
       "CONFIRMED_CROSS_PROVIDER_GAP": 35,
@@ -99,7 +127,7 @@
     "openalex_resolution_rate": 0.9277,
     "openalex_resolved": 77
   },
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "snapshot_date": "2026-08-27",
   "source": {
     "archive_md5": "67d9e82abe79ed69ea5b5a3e4537ca3b",

@@ -8,6 +8,15 @@ from typing import Any, Iterable
 from normalize_paper import normalize_arxiv_id, normalize_doi
 
 
+DEFAULT_HIGH_CITATION_THRESHOLD = 500
+DEFAULT_BRIDGE_POLICY_STATUS = "SENSITIVITY_CHECKED"
+DEFAULT_BRIDGE_POLICY_SOURCE = (
+    "TUdatalib 82-case exploratory snapshot dated 2026-08-27: pair bridge rates were "
+    "8.47%-12.12% across endpoint thresholds 50, 100, 250, 500, and 1000. The 500-citation "
+    "default is an operational base-rate guard, not a universal field calibration or performance claim."
+)
+
+
 def _alias_forms(value: Any) -> set[str]:
     if value in (None, ""):
         return set()
@@ -120,7 +129,7 @@ def find_bridges(
     paper_b: str,
     papers: Iterable[dict[str, Any]],
     cutoff: str | None = None,
-    high_citation_threshold: int | None = None,
+    high_citation_threshold: int | None = DEFAULT_HIGH_CITATION_THRESHOLD,
 ) -> list[dict[str, Any]]:
     index, aliases = _alias_index(list(papers))
     paper_a = _resolve(paper_a, aliases)

@@ -57,7 +57,9 @@ def build(skill: Path, output: Path) -> str:
             info.external_attr = 0o100644 << 16
             archive.writestr(info, source.read_bytes())
     digest = sha256(output.read_bytes()).hexdigest()
-    output.with_suffix(output.suffix + ".sha256").write_text(f"{digest}  {output.name}\n", encoding="ascii")
+    output.with_suffix(output.suffix + ".sha256").write_bytes(
+        f"{digest}  {output.name}\n".encode("ascii")
+    )
     return digest
 
 

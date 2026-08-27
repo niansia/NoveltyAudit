@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 path = Path(__file__).resolve().parents[2] / "benchmark" / "bridge_base_rate.py"
+repo_root = Path(__file__).resolve().parents[3]
 spec = importlib.util.spec_from_file_location("bridge_base_rate", path)
 bridge = importlib.util.module_from_spec(spec)
 assert spec.loader
@@ -160,3 +161,28 @@ def test_summary_does_not_put_partial_pairs_in_zero_denominator():
     assert summary["bridges"]["complete_pairs"] == 0
     assert summary["bridges"]["pair_bridge_base_rate"] is None
     assert summary["bridges"]["complete_multi_prior_cases"] == 0
+    assert "product_signal" not in summary["bridges"]
+    assert "composition_case_prevalence_lower_bound" not in summary["case_coverage"]
+    assert summary["case_coverage"]["multi_prior_mention_prevalence_lower_bound"] == 1.0
+
+
+def test_exact_binomial_interval_discloses_small_case_sample_uncertainty():
+    interval = bridge.clopper_pearson_interval(4, 18)
+    assert interval == {
+        "method": "CLOPPER_PEARSON_EXACT",
+        "confidence": 0.95,
+        "lower": 0.0641,
+        "upper": 0.4764,
+    }
+
+
+def test_public_aggregate_uses_measured_semantics_without_magic_signal():
+    import json
+
+    summary = json.loads((repo_root / "docs" / "bridge-base-rate-summary.json").read_text(encoding="utf-8"))
+    assert summary["schema_version"] == "1.1"
+    assert summary["case_coverage"]["multi_prior_mention_prevalence_lower_bound"] == 0.2805
+    assert "composition_case_prevalence_lower_bound" not in summary["case_coverage"]
+    assert "product_signal" not in summary["bridges"]
+    assert summary["prior_resolution"]["observed_nonempty_backward_coverage_with_s2_fallback_count"] == 56
+    assert summary["bridges"]["case_bridge_base_rate_exact_95pct_interval"]["lower"] == 0.0641

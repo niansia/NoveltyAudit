@@ -14,7 +14,7 @@ NoveltyAudit's deterministic implementation is not evidence that it works on rev
 - Observed structure: 182 submission directories, 82 cases with `annotation.json`, 351 reviewer-text files, and 182 system structured representations.
 - Human-label payload: 86 review outputs across the 82 annotated cases—63 `not_novel`, 18 `novel`, and 5 with a blank class.
 
-The raw archive and extracted content are not committed or redistributed under this Apache-2.0 repository. Reproducible mappings may cite source case IDs, checksums, and derived evaluation records subject to the dataset license.
+The raw archive and extracted content are not committed or redistributed under this Apache-2.0 repository. Reproducible mappings may cite source case IDs, checksums, and derived evaluation records subject to the dataset license. See [data and derived-artifact notices](DATA_LICENSES.md).
 
 ## Fixed first pilot
 
@@ -50,15 +50,16 @@ The complete aggregate is machine-readable in [`bridge-base-rate-summary.json`](
 | --- | ---: |
 | Annotated cases represented | 82 / 82 |
 | Cases with at least one deterministically detected named prior | 37 |
-| Cases with at least two named priors | 23 / 82 (28.05% conservative lower bound) |
+| Cases with at least two named priors | 23 / 82 (28.05% conservative lower bound on multi-prior mentions, not composition objections) |
 | Named priors | 83 |
 | OpenAlex-resolved priors | 77 / 83 (92.77%) |
 | Priors with nonempty OpenAlex references | 21 / 83 (25.30%) |
 | Confirmed OpenAlex-empty / Semantic Scholar-nonempty gaps | 35 / 83 (42.17%) |
+| Observed nonempty backward coverage with Semantic Scholar fallback | 56 / 83 (67.47% lower bound) |
 | Complete multi-prior cases | 18 |
 | Complete endpoint pairs | 72 / 74 |
-| Complete cases with at least one pre-cutoff bridge | 4 / 18 (22.22%) |
-| Complete pairs with at least one pre-cutoff bridge | 12 / 72 (16.67%) |
+| Complete cases with at least one pre-cutoff bridge | 4 / 18 (22.22%; exact 95% interval 6.41%–47.64%) |
+| Complete pairs with at least one pre-cutoff bridge | 12 / 72 (16.67%; exact 95% interval 8.92%–27.30%) |
 | Pair bridge rate after citation-count sensitivity guards | 8.47%–12.12% |
 | Complete pairs with less than 18 months of observation | 61 / 72 (84.72%) |
 | Median pair opportunity window | 224 days |
@@ -72,11 +73,13 @@ The 60 complete zero-bridge pairs split into four materially different states:
 | Short observation window only | 1 |
 | Zero under a complete, mature, nonempty provider snapshot | 1 |
 
-Two additional high-base-rate pairs returned more than the 1,000-work measurement cap and are `UNINTERPRETABLE_INCOMPLETE_QUERY`; they are excluded from all zero and complete-case denominators. Citation-count sensitivity was reported at endpoint thresholds of 50, 100, 250, 500, and 1,000 rather than choosing an unsupported universal field threshold.
+Two additional high-base-rate pairs returned more than the 1,000-work measurement cap and are `UNINTERPRETABLE_INCOMPLETE_QUERY`; they are excluded from all zero and complete-case denominators. Pair rates remained between 8.47% and 12.12% across endpoint thresholds 50, 100, 250, 500, and 1,000. Version 0.3.1 therefore uses 500 as a sensitivity-checked operational guard. This is not universal field calibration or a performance claim, and a preregistered field policy may override it.
+
+The extraction state matters: 23 cases are `POTENTIAL_MISSED_MENTIONS`. The 28.05% figure is therefore only a lower bound on deterministically detected multi-prior reviewer mentions. It does not measure the prevalence of compositional novelty objections, because mentioning two works does not establish that the reviewer treated their combination as an attack.
 
 ### Product interpretation
 
-Bridge Evidence is not a universal primary signal. It is a conditional positive signal for sufficiently mature, adequately covered literature neighborhoods. In this sample, raw case prevalence is below 30%, pair prevalence falls to roughly 9%–12% under citation-count guards, OpenAlex backward-reference coverage is often missing, and most endpoint pairs are too recent to have accumulated a survey or co-citation trail.
+Bridge Evidence is not a universal primary signal. It is a conditional positive signal for sufficiently mature, adequately covered literature neighborhoods. Four of 18 complete multi-prior cases were positive, so bridges were a minority in this sample; the exact interval is wide enough that this is not a precise population estimate. Pair rates remained roughly 8%–12% under the tested citation guards, OpenAlex backward-reference coverage is often missing, and most endpoint pairs are too recent to have accumulated a survey or co-citation trail.
 
 The product hierarchy is therefore:
 
@@ -84,7 +87,7 @@ The product hierarchy is therefore:
 2. ancestor terminology and overlooked-killer retrieval;
 3. Bridge Evidence as a useful positive signal in mature fields, never as silent negative reassurance.
 
-Runtime `expand-graph` records now expose endpoint reference observations, the numeric observation window, historical versus landscape candidates, and a deterministic negative-result scope. A zero cannot be reported without these diagnostics.
+Runtime `graph-preflight` now exposes the observation window before provider calls. `expand-graph` unions every available OpenAlex and Semantic Scholar backward route, unions forward candidates in shared namespaces, and records provider-attributed endpoint observations, historical versus landscape candidates, and a deterministic negative-result scope. The measured 35 OpenAlex-empty/Semantic Scholar-nonempty priors directly motivated this runtime change. A zero cannot be reported without these diagnostics.
 
 ## Current measured counters
 

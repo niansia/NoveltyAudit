@@ -10,7 +10,13 @@ from datetime import date, datetime
 from itertools import combinations
 from typing import Any
 
-from citation_graph import find_bridges, graph_bridge_qualifies, relation_route_exists
+from citation_graph import (
+    DEFAULT_BRIDGE_POLICY_SOURCE,
+    DEFAULT_HIGH_CITATION_THRESHOLD,
+    find_bridges,
+    graph_bridge_qualifies,
+    relation_route_exists,
+)
 from composition import (
     GRAPH_BRIDGES,
     HARD_COVERAGE,
@@ -20,6 +26,7 @@ from composition import (
     solve_mps,
 )
 from export_report import to_html, to_markdown, validate_user_output
+from graph_expansion import SHORT_OBSERVATION_WINDOW_DAYS, SUPPORTED_GRAPH_PROVIDERS
 from normalize_paper import normalize_arxiv_id, normalize_doi, normalize_title
 from resolve_dates import apply_cutoff
 from schema_validation import validate_report_schema
@@ -314,10 +321,15 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append("author_bibliography cannot contain entries when it was not provided")
     bridge_policy = report["search"].get("bridge_policy") or {}
     high_citation_threshold = bridge_policy.get("high_citation_threshold")
-    if bridge_policy.get("status") == "CALIBRATED" and not isinstance(high_citation_threshold, int):
-        errors.append("CALIBRATED bridge policy requires an integer high_citation_threshold")
+    if bridge_policy.get("status") in {"CALIBRATED", "SENSITIVITY_CHECKED"} and not isinstance(high_citation_threshold, int):
+        errors.append("configured bridge policy requires an integer high_citation_threshold")
     if bridge_policy.get("status") == "UNCONFIGURED" and high_citation_threshold is not None:
         errors.append("UNCONFIGURED bridge policy cannot claim a high_citation_threshold")
+    if bridge_policy.get("status") == "SENSITIVITY_CHECKED" and (
+        high_citation_threshold != DEFAULT_HIGH_CITATION_THRESHOLD
+        or bridge_policy.get("source") != DEFAULT_BRIDGE_POLICY_SOURCE
+    ):
+        errors.append("SENSITIVITY_CHECKED bridge policy must use the documented v0.3.1 operational guard")
     manifest = report.get("run_manifest") or {}
     for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"):
         if not manifest.get(field):
@@ -924,15 +936,98 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         if not bridge_candidate_ids <= discovered_ids or not new_ids <= discovered_ids:
             errors.append(f"graph expansion {expansion_id} bridge/new IDs must be discovered by that expansion")
         calls = [item for item in expansion.get("calls") or [] if isinstance(item, dict)]
+        declared_providers = {str(value) for value in expansion.get("providers") or []}
+        expected_provider_mode = (
+            next(iter(declared_providers)) if len(declared_providers) == 1
+            else "multi-provider" if len(declared_providers) > 1 else None
+        )
+        if expansion.get("provider") != expected_provider_mode:
+            errors.append(f"graph expansion {expansion_id} provider mode disagrees with providers")
+        if any(str(item.get("provider")) not in declared_providers for item in calls):
+            errors.append(f"graph expansion {expansion_id} contains calls outside its declared providers")
+        available_providers = {
+            provider_name for provider_name in SUPPORTED_GRAPH_PROVIDERS
+            if any(
+                (papers.get(endpoint_id) or {}).get("provider_ids", {}).get(provider_name)
+                or provider_name in set((papers.get(endpoint_id) or {}).get("providers") or [])
+                for endpoint_id in endpoint_ids
+            )
+        }
+        expected_omitted = available_providers - declared_providers
+        if {str(value) for value in expansion.get("omitted_providers") or []} != expected_omitted:
+            errors.append(f"graph expansion {expansion_id} omitted_providers disagrees with endpoint IDs")
+        if expansion.get("provider_selection") == "AUTO_AVAILABLE" and expected_omitted:
+            errors.append(f"graph expansion {expansion_id} automatic provider union omitted available routes")
         backward_anchors = {str(item.get("anchor_paper_id")) for item in calls if item.get("direction") == "BACKWARD"}
         forward_anchors = {str(item.get("anchor_paper_id")) for item in calls if item.get("direction") == "FORWARD"}
         failures_for_expansion = expansion.get("failures") or []
+        expected_backward_routes = {
+            (provider_name, endpoint_id)
+            for provider_name in declared_providers
+            for endpoint_id in endpoint_ids
+            if (
+                (papers.get(endpoint_id) or {}).get("provider_ids", {}).get(provider_name)
+                or provider_name in set((papers.get(endpoint_id) or {}).get("providers") or [])
+            )
+        }
+        attempted_backward_routes = {
+            (str(item.get("provider")), str(item.get("anchor_paper_id")))
+            for item in calls if item.get("direction") == "BACKWARD"
+        } | {
+            (str(item.get("provider")), str(item.get("anchor_paper_id")))
+            for item in failures_for_expansion
+            if isinstance(item, dict) and item.get("direction") == "BACKWARD"
+            and str(item.get("provider")) in declared_providers
+        }
+        if attempted_backward_routes != expected_backward_routes:
+            errors.append(f"graph expansion {expansion_id} backward routes disagree with declared provider IDs")
+
+        expected_anchor_ids = set(endpoint_ids)
+        if expansion.get("anchor_selection") == "LOWER_CITATION_COUNT":
+            endpoint_papers = [papers.get(endpoint_id) or {} for endpoint_id in endpoint_ids]
+            if all(
+                isinstance(paper.get("citation_count"), int)
+                and not isinstance(paper.get("citation_count"), bool)
+                for paper in endpoint_papers
+            ):
+                ordered_endpoints = sorted(
+                    endpoint_papers,
+                    key=lambda paper: (paper["citation_count"], str(paper.get("id"))),
+                )
+                expected_anchor_ids = {str(ordered_endpoints[0].get("id"))}
+            else:
+                errors.append(f"graph expansion {expansion_id} lower-citation anchor lacks complete counts")
+        shared_providers = {
+            provider_name for provider_name in declared_providers
+            if all(
+                (papers.get(endpoint_id) or {}).get("provider_ids", {}).get(provider_name)
+                or provider_name in set((papers.get(endpoint_id) or {}).get("providers") or [])
+                for endpoint_id in endpoint_ids
+            )
+        }
+        expected_forward_routes = {
+            (provider_name, anchor_id)
+            for provider_name in shared_providers for anchor_id in expected_anchor_ids
+        }
+        attempted_forward_routes = {
+            (str(item.get("provider")), str(item.get("anchor_paper_id")))
+            for item in calls if item.get("direction") == "FORWARD"
+        } | {
+            (str(item.get("provider")), str(item.get("anchor_paper_id")))
+            for item in failures_for_expansion
+            if isinstance(item, dict) and item.get("direction") == "FORWARD"
+            and str(item.get("provider")) in declared_providers
+        }
+        if attempted_forward_routes != expected_forward_routes:
+            errors.append(f"graph expansion {expansion_id} forward routes disagree with shared provider IDs")
         truncated_calls = [item for item in calls if item.get("possibly_truncated") is True]
         expected_partial_reasons = set()
         if failures_for_expansion:
             expected_partial_reasons.add("PROVIDER_FAILURE")
         if truncated_calls:
             expected_partial_reasons.add("LIMIT_REACHED")
+        if expected_omitted:
+            expected_partial_reasons.add("PROVIDER_SCOPE_RESTRICTED")
         submitted_partial_reasons = {str(value) for value in expansion.get("partial_reasons") or []}
         if submitted_partial_reasons != expected_partial_reasons:
             errors.append(f"graph expansion {expansion_id} partial_reasons disagree with calls and failures")
@@ -979,23 +1074,43 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         expected_observation_statuses: list[str] = []
         for endpoint_id in endpoint_ids:
             observation = observations.get(endpoint_id) or {}
-            backward = next((
+            backward_calls = [
                 item for item in calls
                 if item.get("direction") == "BACKWARD" and str(item.get("anchor_paper_id")) == endpoint_id
-            ), None)
-            failed = any(
-                failure.get("direction") == "BACKWARD"
+            ]
+            backward_failures = [
+                failure for failure in failures_for_expansion if isinstance(failure, dict)
+                and failure.get("direction") == "BACKWARD"
                 and str(failure.get("anchor_paper_id")) == endpoint_id
-                for failure in failures_for_expansion if isinstance(failure, dict)
-            )
+            ]
+            failed = bool(backward_failures)
+            returned_count = sum(item.get("returned_count", 0) for item in backward_calls)
+            expected_provider_observations = [
+                {
+                    "provider": str(item.get("provider")),
+                    "returned_count": item.get("returned_count"),
+                    "status": "NONEMPTY" if item.get("returned_count", 0) > 0 else "EMPTY_AT_PROVIDER",
+                }
+                for item in backward_calls
+            ]
+            expected_provider_observations.extend({
+                "provider": str(failure.get("provider")),
+                "returned_count": None,
+                "status": "FAILED",
+            } for failure in backward_failures)
+            expected_provider_observations.sort(key=lambda item: item["provider"])
             expected_status = (
-                "FAILED" if failed or backward is None
-                else "NONEMPTY" if backward.get("returned_count", 0) > 0
+                "NONEMPTY" if returned_count > 0
+                else "FAILED" if failed or not backward_calls
                 else "EMPTY_AT_PROVIDER"
             )
             expected_observation_statuses.append(expected_status)
-            expected_count = backward.get("returned_count") if backward else None
-            if observation.get("status") != expected_status or observation.get("provider_returned_count") != expected_count:
+            expected_count = returned_count if backward_calls else None
+            if (
+                observation.get("status") != expected_status
+                or observation.get("provider_returned_count") != expected_count
+                or observation.get("provider_observations") != expected_provider_observations
+            ):
                 errors.append(f"graph expansion {expansion_id} reference observation for {endpoint_id} disagrees with calls")
         historical_ids = {str(value) for value in expansion.get("historical_bridge_candidate_ids") or []}
         landscape_ids = {str(value) for value in expansion.get("landscape_bridge_candidate_ids") or []}
@@ -1024,6 +1139,17 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                     expected_window = None
         if expansion.get("observation_window_days") != expected_window:
             errors.append(f"graph expansion {expansion_id} observation_window_days is inconsistent")
+        expected_window_status = (
+            "NO_CUTOFF" if not expansion.get("cutoff")
+            else "ENDPOINT_DATE_UNRESOLVED" if expected_window is None
+            else "POST_CUTOFF_ENDPOINT" if expected_window < 0
+            else "SHORT" if expected_window < SHORT_OBSERVATION_WINDOW_DAYS
+            else "MATURE"
+        )
+        if expansion.get("observation_window_status") != expected_window_status:
+            errors.append(f"graph expansion {expansion_id} observation_window_status is inconsistent")
+        if expansion.get("observation_window_threshold_days") != SHORT_OBSERVATION_WINDOW_DAYS:
+            errors.append(f"graph expansion {expansion_id} observation-window threshold is inconsistent")
         if not expansion.get("cutoff"):
             expected_scope = "NO_HISTORICAL_CUTOFF"
         elif expansion.get("status") == "PARTIAL":

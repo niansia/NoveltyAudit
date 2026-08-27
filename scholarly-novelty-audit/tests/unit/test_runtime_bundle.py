@@ -15,6 +15,9 @@ def test_runtime_bundle_is_deterministic_and_excludes_development_files(tmp_path
     second = tmp_path / "second.zip"
     assert MODULE.build(skill, first) == MODULE.build(skill, second)
     assert first.read_bytes() == second.read_bytes()
+    sidecar = first.with_suffix(first.suffix + ".sha256").read_bytes()
+    assert sidecar.endswith(b"\n")
+    assert b"\r\n" not in sidecar
     with zipfile.ZipFile(first) as archive:
         names = archive.namelist()
         infos = archive.infolist()

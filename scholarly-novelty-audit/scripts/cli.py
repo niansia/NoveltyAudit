@@ -11,11 +11,16 @@ from pathlib import Path
 from typing import Any
 
 from composition import criticality_sensitivity, solve_mps
-from citation_graph import find_bridges
+from citation_graph import (
+    DEFAULT_BRIDGE_POLICY_SOURCE,
+    DEFAULT_BRIDGE_POLICY_STATUS,
+    DEFAULT_HIGH_CITATION_THRESHOLD,
+    find_bridges,
+)
 from deduplicate import deduplicate
 from export_report import export
 from fulltext import acquire_fulltexts
-from graph_expansion import expand_graph
+from graph_expansion import expand_graph, graph_preflight
 from normalize_paper import normalize_many
 from orchestrate_search import run_search_plan
 from providers import SEARCH_PROVIDERS
@@ -139,6 +144,14 @@ def command_snapshot_diff(args: argparse.Namespace) -> int:
 
 def command_bridge(args: argparse.Namespace) -> int:
     papers = records(read_json(args.papers))
+    policy_source = getattr(args, "bridge_policy_source", None)
+    if args.high_citation_threshold == DEFAULT_HIGH_CITATION_THRESHOLD and not policy_source:
+        policy_status = DEFAULT_BRIDGE_POLICY_STATUS
+        policy_source = DEFAULT_BRIDGE_POLICY_SOURCE
+    elif not policy_source:
+        raise ValueError("a custom high-citation threshold requires --bridge-policy-source")
+    else:
+        policy_status = "CALIBRATED"
     discovered = find_bridges(
         args.paper_a, args.paper_b, papers, cutoff=args.cutoff,
         high_citation_threshold=args.high_citation_threshold,
@@ -151,7 +164,18 @@ def command_bridge(args: argparse.Namespace) -> int:
         "graph_bridges": graph_bridges,
         "landscape_bridges": landscape_bridges,
         "textual_bridge_required": any(item.get("base_rate_status") != "HIGH_BASE_RATE" for item in graph_bridges),
+        "bridge_policy": {
+            "status": policy_status,
+            "high_citation_threshold": args.high_citation_threshold,
+            "source": policy_source,
+        },
     })
+    return EXIT_COMPLETE
+
+
+def command_graph_preflight(args: argparse.Namespace) -> int:
+    papers = records(read_json(args.papers))
+    write_json(args.output, graph_preflight(papers, args.paper_a, args.paper_b, args.cutoff))
     return EXIT_COMPLETE
 
 
@@ -163,20 +187,20 @@ def command_expand_graph(args: argparse.Namespace) -> int:
     if any(paper is None for paper in endpoints):
         raise ValueError("paper-a and paper-b must exist as canonical IDs in the papers file")
     provider_names = [args.provider] if args.provider else ["openalex", "semantic-scholar"]
-    selected = None
+    selected = []
     for name in provider_names:
-        if all(
+        if any(
             (paper.get("provider_ids") or {}).get(name)
             or (name in set(paper.get("providers") or []) and paper.get("id"))
             for paper in endpoints
         ):
-            selected = name
-            break
+            selected.append(name)
     if not selected:
-        raise ValueError("no common OpenAlex or Semantic Scholar IDs exist for both endpoints; pass --provider after enriching provider_ids")
+        raise ValueError("neither endpoint has an OpenAlex or Semantic Scholar graph ID")
     result = expand_graph(
-        papers, args.paper_a, args.paper_b, SEARCH_PROVIDERS[selected](),
+        papers, args.paper_a, args.paper_b, [SEARCH_PROVIDERS[name]() for name in selected],
         before=args.cutoff, limit=args.limit,
+        provider_selection="EXPLICIT_OVERRIDE" if args.provider else "AUTO_AVAILABLE",
     )
     if isinstance(payload, dict):
         output = dict(payload)
@@ -317,11 +341,22 @@ def parser() -> argparse.ArgumentParser:
     bridge.add_argument("--paper-a", required=True)
     bridge.add_argument("--paper-b", required=True)
     bridge.add_argument("--cutoff")
-    bridge.add_argument("--high-citation-threshold", type=int)
+    bridge.add_argument("--high-citation-threshold", type=int, default=DEFAULT_HIGH_CITATION_THRESHOLD)
+    bridge.add_argument("--bridge-policy-source", help="required citation or preregistration for a custom threshold")
     bridge.add_argument("--output", required=True)
     bridge.set_defaults(func=command_bridge)
 
-    expand_graph_parser = sub.add_parser("expand-graph", help="actively retrieve backward references and forward co-citation candidates")
+    graph_preflight_parser = sub.add_parser(
+        "graph-preflight", help="compute pair maturity before citation-provider calls",
+    )
+    graph_preflight_parser.add_argument("--papers", required=True)
+    graph_preflight_parser.add_argument("--paper-a", required=True)
+    graph_preflight_parser.add_argument("--paper-b", required=True)
+    graph_preflight_parser.add_argument("--cutoff", required=True)
+    graph_preflight_parser.add_argument("--output", required=True)
+    graph_preflight_parser.set_defaults(func=command_graph_preflight)
+
+    expand_graph_parser = sub.add_parser("expand-graph", help="union available provider graph neighborhoods and co-citation candidates")
     expand_graph_parser.add_argument("--papers", required=True)
     expand_graph_parser.add_argument("--paper-a", required=True)
     expand_graph_parser.add_argument("--paper-b", required=True)
