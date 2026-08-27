@@ -108,19 +108,18 @@ python scholarly-novelty-audit/scripts/cli.py bridge \
 
 python scholarly-novelty-audit/scripts/cli.py verify-citations \
   --input run/report.json --output run/report.verified.json
-python scholarly-novelty-audit/scripts/cli.py runtime-info \
-  --output run/runtime-environment.json
 python scholarly-novelty-audit/scripts/cli.py report-attempt \
   --input run/report.verified.json --max-attempts 3 \
+  --output run/report.bound.json \
   --state run/report-assembly.json
-python scholarly-novelty-audit/scripts/cli.py validate --input run/report.verified.json
+python scholarly-novelty-audit/scripts/cli.py validate --input run/report.bound.json
 python scholarly-novelty-audit/scripts/cli.py export \
-  --input run/report.verified.json --format html --output run/report.html
+  --input run/report.bound.json --format html --output run/report.html
 ```
 
-The bridge command defaults to a 500-citation operational guard. The 82-case exploratory sensitivity table was comparatively flat across thresholds 50–1,000 (8.47%–12.12% pair rates), so the bundled policy is labeled `SENSITIVITY_CHECKED`, not universally field-calibrated. A custom threshold with a source is only `DOCUMENTED_OVERRIDE`; `CALIBRATED` additionally requires machine-readable dataset and method fields plus `preregistered=true`. Missing endpoint citation counts still make co-citation `UNASSESSED`.
+The bridge command defaults to a 500-citation operational guard. The 82-case exploratory sensitivity table was comparatively flat across thresholds 50–1,000 (8.47%–12.12% pair rates), so the bundled policy is labeled `SENSITIVITY_CHECKED`, not universally field-calibrated. A custom threshold with a source is only `DOCUMENTED_OVERRIDE`; `CALIBRATED` additionally requires structured dataset and method provenance plus `preregistered=true`. Those fields are a documented assertion, not independent proof that the calibration exists or supports the threshold. Missing endpoint citation counts still make co-citation `UNASSESSED`.
 
-The host agent gets at most three structured-report attempts. Reusing the same assembly state appends a sequential hash and validation history bound to the immutable `audit_id`, claim ID, claim-freeze hash, and cutoff; a state from another audit is rejected. Exhaustion therefore cannot be asserted without the preceding attempts for that same audit. `report-attempt` returns `RETRY_REQUIRED` with exact validation failures before the budget is exhausted; an invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit.
+The host agent gets at most three structured-report attempts. Before validation and hashing, `report-attempt` replaces any host-supplied runtime claim with the Python, `jsonschema`, and `pypdf` versions resolved by that process, writes the same machine-bound report to `--output`, and records the binding in every attempt. The input draft is not overwritten. Reusing the same assembly state appends a sequential hash and validation history bound to the immutable `audit_id`, claim ID, claim-freeze hash, and cutoff; a state from another audit or an internally inconsistent earlier runtime record is rejected. `RETRY_REQUIRED` reports exact failures before exhaustion; only the bound output from a `COMPLETE` attempt may be exported. An invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit. Standalone `validate` intentionally checks historical runtime provenance for structure, not equality with the machine performing a later review.
 
 Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. arXiv offsets advance by raw API entries, never by the smaller post-cutoff eligible set. At least one deterministic query-family run bypasses aggressive provider-side date filtering as a temporal-recall backstop; the earliest-public-date resolver remains the final eligibility gate. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Protocol Coverage deterministically rather than silently becoming evidence of novelty. `BROAD` means broad execution of this bounded protocol; it is not demonstrated recall of all relevant literature.
 

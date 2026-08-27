@@ -22,6 +22,22 @@ def runtime_environment() -> dict[str, Any]:
     }
 
 
+RUNTIME_BINDING = "MACHINE_INJECTED_BEFORE_VALIDATION_AND_HASH"
+
+
+def bind_runtime_environment(report: dict[str, Any]) -> dict[str, Any]:
+    """Replace host-supplied runtime claims with this process's resolved environment."""
+    manifest = report.get("run_manifest")
+    if not isinstance(manifest, dict):
+        manifest = {}
+    else:
+        manifest = dict(manifest)
+    actual = runtime_environment()
+    manifest["runtime_environment"] = actual
+    report["run_manifest"] = manifest
+    return actual
+
+
 def report_hash(report: dict[str, Any]) -> str:
     encoded = json.dumps(report, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return f"sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
@@ -53,9 +69,10 @@ def evaluate_report_attempt(
     max_attempts: int,
     previous_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Append one auditable retry attempt without accepting invalid output."""
+    """Machine-bind runtime provenance, then append one auditable validation attempt."""
     if not 1 <= max_attempts <= 3:
         raise ValueError("max-attempts must be between 1 and 3")
+    actual_runtime = bind_runtime_environment(report)
     identity = audit_identity(report)
     identity_digest = audit_identity_hash(identity)
     attempts: list[dict[str, Any]] = []
@@ -82,8 +99,12 @@ def evaluate_report_attempt(
             or previous_state.get("retry_exhausted") is not False
             or previous_state.get("report_hash") != latest.get("report_hash")
             or previous_state.get("validation_errors") != latest.get("validation_errors")
+            or previous_state.get("runtime_binding") != RUNTIME_BINDING
+            or previous_state.get("runtime_environment") != latest.get("runtime_environment")
             or latest.get("audit_identity_hash") != identity_digest
             or any(item.get("audit_identity_hash") != identity_digest for item in previous_attempts)
+            or any(item.get("runtime_binding") != RUNTIME_BINDING for item in previous_attempts)
+            or any(not isinstance(item.get("runtime_environment"), dict) for item in previous_attempts)
         ):
             raise ValueError("report assembly state conflicts with its latest retry record")
         attempts = list(previous_attempts)
@@ -98,12 +119,14 @@ def evaluate_report_attempt(
         "attempt": attempt,
         "report_hash": digest,
         "audit_identity_hash": identity_digest,
+        "runtime_binding": RUNTIME_BINDING,
+        "runtime_environment": actual_runtime,
         "valid": not errors,
         "validation_errors": errors,
     })
     if not errors:
         status = "COMPLETE"
-        next_action = "EXPORT_VALIDATED_REPORT"
+        next_action = "EXPORT_MACHINE_BOUND_REPORT"
     elif attempt < max_attempts:
         status = "RETRY_REQUIRED"
         next_action = "REPAIR_FROM_VALIDATION_ERRORS"
@@ -114,6 +137,8 @@ def evaluate_report_attempt(
     return {
         "status": status,
         "audit_identity": identity,
+        "runtime_binding": RUNTIME_BINDING,
+        "runtime_environment": actual_runtime,
         "report_valid": not errors,
         "attempt_count": attempt,
         "max_attempts": max_attempts,

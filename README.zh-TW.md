@@ -24,8 +24,8 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - 公開 PDF／HTML／文字的 Tier-2 全文取得、DNS 解析結果 pinning、實際 peer IP 驗證、下載大小上限、文字抽取、內容雜湊，以及 evidence-to-acquisition 驗證。
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
-- 可稽核的三次 report assembly gate：逐次保留雜湊與驗證失敗，預算耗盡必須以 `PARTIAL + INCONCLUSIVE` 終止。
-- 具版本的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
+- 可稽核的三次 report assembly gate：`report-attempt` 會在驗證與雜湊前自行注入實際 Python、jsonschema、pypdf 版本，輸出 hash 一致的 machine-bound report；逐次保留雜湊與失敗，預算耗盡必須以 `PARTIAL + INCONCLUSIVE` 終止。
+- 具版本且由 assembly process 綁定的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
 - 保存 provider 計數、逐頁紀錄、飽和停止原因、corpus 與截斷狀態的 SearchRun，並由 validator 自動推導 Search Protocol Coverage。`BROAD` 只代表這套有界流程被廣泛執行，不代表已找回所有相關文獻。
 - JSON Schemas、golden fixture、測試與 benchmark annotation schema。
 
@@ -38,6 +38,8 @@ MPS 搜尋界限固定為 `K ≤ 3`。「沒有找到」只代表沒有找到三
 arXiv 翻頁以 API 原始 entries 數量推進，不會以 cutoff 過濾後的篇數計算 offset。搜尋計畫也會讓至少一個 query-family run 不套用 provider-side cutoff，作為 temporal-recall backstop，再由最早公開日 resolver 做最終 eligibility 判定。
 
 每個多篇 MPS 的端點 pair 都先執行零網路的 `graph-preflight`，再取得 `COMPLETE` graph expansion。Preflight 在搜尋前計算觀察窗；`BELOW_DIAGNOSTIC_THRESHOLD` 只表示零結果資訊量低，`MEETS_DIAGNOSTIC_THRESHOLD` 也只表示達到探索性的 548 天門檻，不代表領域已成熟，兩者都不會跳過檢索。預設 `expand-graph` 會把兩端所有可用的 OpenAlex／Semantic Scholar backward records 取聯集，並在兩端共有的 provider namespace 上聯集 forward candidates；每次 call 與端點覆蓋都保留 provider 歸屬。若兩端沒有共同 namespace，仍保留 backward 證據，但結果是 `PARTIAL`，不會直接失敗或假稱查完。Provider 會明確回報 traversal 是否耗盡與 continuation token；不完整時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap。歷史 graph retrieval 由本地 earliest-public-date resolver 作最終 cutoff 裁決，並保留 post-cutoff 資料作 landscape review。每次擴張記錄逐 provider `endpoint_reference_observations`、觀察窗數字與狀態、歷史／現況候選與 `negative_result_scope`。
+
+自訂高引用門檻若只有來源，只能標成 `DOCUMENTED_OVERRIDE`。`CALIBRATED` 還要有結構化 dataset、method 與 `preregistered=true`；這些欄位是 calibration provenance 的聲明，不代表系統已獨立驗證 calibration artifact 真實存在或足以支持該門檻。
 
 ## 目前的真實量測
 

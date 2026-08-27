@@ -669,6 +669,15 @@ def test_manifest_must_record_evidence_processing_runtime(valid_report):
     errors = validate_report(report)
     assert any("pypdf" in error for error in errors)
 
+
+def test_historical_validate_checks_runtime_shape_not_current_machine(valid_report):
+    report = deepcopy(valid_report)
+    report["run_manifest"]["runtime_environment"] = {
+        "python_version": "0.0.0-fake",
+        "dependencies": {"jsonschema": "fake", "pypdf": "fake"},
+    }
+    assert validate_report(report) == []
+
 def test_graph_negative_diagnostics_are_recomputed(valid_report):
     report = deepcopy(valid_report)
     expansion = report["search"]["graph_expansions"][0]

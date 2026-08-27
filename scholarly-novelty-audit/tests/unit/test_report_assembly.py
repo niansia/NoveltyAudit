@@ -1,7 +1,8 @@
 from copy import deepcopy
 
 import pytest
-from report_assembly import evaluate_report_attempt
+import report_assembly
+from report_assembly import RUNTIME_BINDING, evaluate_report_attempt, report_hash
 
 
 def test_valid_report_completes_without_retry(valid_report):
@@ -11,12 +12,37 @@ def test_valid_report_completes_without_retry(valid_report):
     assert result["retry_exhausted"] is False
     assert result["conclusion_cap"] == "NONE"
     assert result["validation_errors"] == []
+    assert result["runtime_binding"] == RUNTIME_BINDING
+    assert result["runtime_environment"] == valid_report["run_manifest"]["runtime_environment"]
+    assert result["report_hash"] == report_hash(valid_report)
+    assert result["next_action"] == "EXPORT_MACHINE_BOUND_REPORT"
     assert result["audit_identity"] == {
         "audit_id": valid_report["audit_id"],
         "claim_id": valid_report["claim_map"]["claim_id"],
         "claim_freeze_hash": valid_report["claim_map"]["freeze_hash"],
         "cutoff": valid_report["run_manifest"]["cutoff"],
     }
+
+
+def test_report_attempt_overwrites_fake_runtime_before_validation_and_hash(valid_report, monkeypatch):
+    fake = {
+        "python_version": "0.0.0-fake",
+        "dependencies": {"jsonschema": "fake", "pypdf": "fake"},
+    }
+    actual = {
+        "python_version": "3.12.13",
+        "dependencies": {"jsonschema": "4.26.0", "pypdf": "6.16.2"},
+    }
+    valid_report["run_manifest"]["runtime_environment"] = fake
+    monkeypatch.setattr(report_assembly, "runtime_environment", lambda: actual)
+
+    result = evaluate_report_attempt(valid_report, max_attempts=3)
+
+    assert result["status"] == "COMPLETE"
+    assert valid_report["run_manifest"]["runtime_environment"] == actual
+    assert result["runtime_environment"] == actual
+    assert result["attempts"][0]["runtime_environment"] == actual
+    assert result["report_hash"] == report_hash(valid_report)
 
 
 def test_invalid_report_requires_retry_before_budget_is_exhausted(valid_report):
@@ -64,6 +90,18 @@ def test_retry_state_top_level_must_match_latest_history(valid_report):
     report.pop("verdict")
     state = evaluate_report_attempt(report, max_attempts=3)
     state["report_hash"] = "sha256:tampered"
+    with pytest.raises(ValueError, match="conflicts with its latest"):
+        evaluate_report_attempt(report, max_attempts=3, previous_state=state)
+
+
+def test_retry_state_cannot_forge_previous_runtime_binding(valid_report):
+    report = deepcopy(valid_report)
+    report.pop("verdict")
+    state = evaluate_report_attempt(report, max_attempts=3)
+    state["attempts"][0]["runtime_environment"] = {
+        "python_version": "0.0.0-fake",
+        "dependencies": {"jsonschema": "fake", "pypdf": "fake"},
+    }
     with pytest.raises(ValueError, match="conflicts with its latest"):
         evaluate_report_attempt(report, max_attempts=3, previous_state=state)
 

@@ -47,7 +47,7 @@ Required for a mature 1.0 product, not for an honest alpha/beta Skill:
 
 ## Public-beta gate status
 
-- End-to-end host-agent report assembly now has a deterministic `report-attempt` contract: at most three same-audit attempts, immutable identity binding, exact validation feedback, and terminal `PARTIAL` plus `INCONCLUSIVE` when the budget is exhausted.
+- End-to-end host-agent report assembly now has a deterministic `report-attempt` contract: at most three same-audit attempts, immutable identity binding, machine-injected runtime provenance before validation and hashing, a hash-matched bound-report output, exact validation feedback, and terminal `PARTIAL` plus `INCONCLUSIVE` when the budget is exhausted.
 - Clean runtime installation is now exercised from the distributable ZIP on both `ubuntu-latest` and `macos-latest`, including dependency installation timing and CLI startup. The first green GitHub Actions run is still required as external evidence before marking this gate passed; a workflow definition alone is not a test result.
 
 ## Blocks benchmark or performance claims
