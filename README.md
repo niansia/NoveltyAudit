@@ -37,7 +37,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Canonical DOI/arXiv/title normalization and preprint-to-publisher deduplication.
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
-- Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with a high-citation base-rate guard, explicit textual promotion gates, and separate post-cutoff landscape bridges.
+- Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with endpoint coverage observations, an explicit observation window, a high-citation base-rate guard, textual promotion gates, and separate post-cutoff landscape bridges.
 - Public Tier-2 PDF/HTML/text acquisition with private-address blocking, response-size limits, extracted-text files, cryptographic hashes, and evidence-to-acquisition validation.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
@@ -122,7 +122,9 @@ The MPS search bound is always `K ≤ 3`. “None found” means no qualifying e
 
 Every endpoint pair in every recomputed multi-paper MPS must have a `COMPLETE` citation-graph expansion record. If any pair is missing or `PARTIAL`, the validator permits only `INCONCLUSIVE` and requires the deterministic search-gap marker `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>`. Consequently, `FRAGMENTED_PRECEDENT` means the relevant pairs were actually expanded and no qualifying historical bridge was verified—not merely that no bridge happened to be present in the initial candidate pool.
 
-A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility. Therefore “no bridge” means no bridge was verified within a complete recorded expansion, and cannot silently support `FRAGMENTED_PRECEDENT` when the citation neighborhood may continue beyond the budget.
+A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility.
+
+Every expansion also records `endpoint_reference_observations`, `observation_window_days`, historical versus landscape candidate IDs, and a deterministic `negative_result_scope`. An empty provider bibliography is a coverage caveat, not evidence that a paper has no references; missing or post-cutoff endpoint dates get separate uninterpretable scopes, and a short window says that co-citation may not yet have had time to form. Therefore “no bridge” can only mean no bridge was verified inside the stated complete provider snapshot and observation window. It is never silent reassurance.
 
 ## Verdicts
 
@@ -157,9 +159,9 @@ Live smoke tests may encounter provider rate limits; those failures are expected
 
 ## Roadmap that needs public data, not synthetic theater
 
-The deterministic core is implemented. The next growth asset is a licensed set of reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate 20 “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
+The deterministic core is implemented. The next growth asset is a licensed set of end-to-end reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
 
-External validation is not complete. The [empirical status page](docs/empirical-status.md) reports the exact non-synthetic counters: one licensed case has reached real provider graph expansion, zero cases have completed the full end-to-end audit, the first three fixed graph pairs recovered zero third-paper bridges, and benchmark metrics remain unmeasured.
+External validation is not complete, but bridge prevalence is no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two in 23 cases (28.05% conservative lower bound). Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%); 84.72% of complete pairs had less than 18 months of observation, and OpenAlex exposed nonempty references for only 25.30% of named priors. Bridge Evidence is therefore positioned as a conditional positive signal for mature, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
 
 The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md).
 

@@ -2,22 +2,28 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-from datetime import date, datetime
 import hashlib
-from itertools import combinations
 import json
 import re
+from copy import deepcopy
+from datetime import date, datetime
+from itertools import combinations
 from typing import Any
 
-from composition import GRAPH_BRIDGES, HARD_COVERAGE, TEXTUAL_BRIDGES, bridge_strength, criticality_sensitivity, solve_mps
 from citation_graph import find_bridges, graph_bridge_qualifies, relation_route_exists
+from composition import (
+    GRAPH_BRIDGES,
+    HARD_COVERAGE,
+    TEXTUAL_BRIDGES,
+    bridge_strength,
+    criticality_sensitivity,
+    solve_mps,
+)
 from export_report import to_html, to_markdown, validate_user_output
 from normalize_paper import normalize_arxiv_id, normalize_doi, normalize_title
 from resolve_dates import apply_cutoff
-from search_coverage import derive_search_coverage
 from schema_validation import validate_report_schema
-
+from search_coverage import derive_search_coverage
 
 CLASSIFICATIONS = {
     "DIRECT_PRECEDENT", "STRONG_COMPOSITION_RISK", "PLAUSIBLE_COMPOSITION_RISK",
@@ -268,12 +274,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             if not paper:
                 errors.append(f"author bibliography entry {index} references unknown candidate {matched}")
             elif basis == "DOI":
-                doi_candidates = re.findall(r"10\.\d{4,9}/[^\s\]\[<>\"']+", raw, flags=re.I)
+                doi_candidates = re.findall(r"10\.\d{4,9}/[^\s\]\[<>\"']+", raw, flags=re.IGNORECASE)
                 verified_match = bool(paper.get("doi")) and normalize_doi(paper.get("doi")) in {
                     normalize_doi(value) for value in doi_candidates
                 }
             elif basis == "ARXIV_ID":
-                arxiv_candidates = re.findall(r"(?:arxiv:\s*)?([a-z-]+/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?", raw, flags=re.I)
+                arxiv_candidates = re.findall(r"(?:arxiv:\s*)?([a-z-]+/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?", raw, flags=re.IGNORECASE)
                 verified_match = bool(paper.get("arxiv_id")) and normalize_arxiv_id(paper.get("arxiv_id")) in {
                     normalize_arxiv_id(value) for value in arxiv_candidates
                 }
@@ -282,7 +288,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 title = normalize_title(paper.get("title"))
                 authors = paper.get("authors") or []
                 surnames = {
-                    normalize_title((author.get("name") if isinstance(author, dict) else author)).split(" ")[-1]
+                    normalize_title(author.get("name") if isinstance(author, dict) else author).split(" ")[-1]
                     for author in authors
                     if normalize_title(author.get("name") if isinstance(author, dict) else author)
                 }
@@ -433,7 +439,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 errors.append(f"top killer {paper_id} claims unsupported coverage for {facet}")
             for evidence_id in ids_for_facet:
                 item = evidence.get(str(evidence_id))
-                if not item or str(item.get("canonical_paper_id")) != paper_id or item.get("source_level") != "TIER_2_FULLTEXT" or item.get("evidence_kind") not in allowed_kinds or str(facet) not in set(str(value) for value in item.get("supports") or []):
+                if not item or str(item.get("canonical_paper_id")) != paper_id or item.get("source_level") != "TIER_2_FULLTEXT" or item.get("evidence_kind") not in allowed_kinds or str(facet) not in {str(value) for value in item.get("supports") or []}:
                     errors.append(f"top killer {paper_id} coverage for {facet} is not evidence-bound")
         for facet in killer.get("does_not_cover") or []:
             status, ids_for_facet = _coverage(papers.get(paper_id, {}), str(facet))
@@ -442,7 +448,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 errors.append(f"top killer {paper_id} lacks negative evidence for {facet}")
             for evidence_id in ids_for_facet:
                 item = evidence.get(str(evidence_id))
-                if not item or str(item.get("canonical_paper_id")) != paper_id or item.get("source_level") != "TIER_2_FULLTEXT" or str(facet) not in set(str(value) for value in item.get("supports") or []):
+                if not item or str(item.get("canonical_paper_id")) != paper_id or item.get("source_level") != "TIER_2_FULLTEXT" or str(facet) not in {str(value) for value in item.get("supports") or []}:
                     errors.append(f"top killer {paper_id} does_not_cover for {facet} is not evidence-bound")
         for evidence_id in killer.get("evidence_ids") or []:
             if str(evidence_id) not in evidence:
@@ -494,7 +500,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                                 errors.append(f"paper {paper_id} hard coverage for {facet} is not Tier-2 full-text evidence")
                             if evidence[str(evidence_id)].get("evidence_kind") not in allowed_kinds:
                                 errors.append(f"paper {paper_id} hard coverage for {facet} uses an invalid evidence kind")
-                            if facet not in set(str(value) for value in evidence[str(evidence_id)].get("supports") or []):
+                            if facet not in {str(value) for value in evidence[str(evidence_id)].get("supports") or []}:
                                 errors.append(f"paper {paper_id} coverage for {facet} uses evidence that does not declare support for that facet")
                     else:
                         errors.append(f"paper {paper_id} coverage for {facet} references missing evidence")
@@ -515,7 +521,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 and str(evidence[evidence_id].get("canonical_paper_id")) == str(paper.get("id"))
                 and evidence[evidence_id].get("source_level") == "TIER_2_FULLTEXT"
                 and evidence[evidence_id].get("evidence_kind") in ({"METHOD", "RESULT"} if facet_types.get(str(facet)) in {"outcome", "evaluation_condition"} else {"METHOD"})
-                and str(facet) in set(str(value) for value in evidence[evidence_id].get("supports") or [])
+                and str(facet) in {str(value) for value in evidence[evidence_id].get("supports") or []}
                 for evidence_id in ids_for_facet
             )
             if not valid:
@@ -613,7 +619,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         if bridge.get("provenance_type") != expected_provenance:
             errors.append(f"bridge {bridge_type} has invalid provenance_type")
         source_id = str(bridge.get("source_paper_id") or "")
-        endpoints = set(str(value) for value in bridge.get("paper_ids") or [])
+        endpoints = {str(value) for value in bridge.get("paper_ids") or []}
         if not source_id:
             errors.append(f"bridge {bridge_type} lacks source_paper_id")
         else:
@@ -662,12 +668,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
 
     def connected_mps_exists(allowed_types: set[str]) -> bool:
         for mps in mps_sets:
-            members = set(str(value) for value in mps.get("paper_ids") or [])
+            members = {str(value) for value in mps.get("paper_ids") or []}
             adjacency = {member: set() for member in members}
             for bridge in eligible_bridges:
                 if str(bridge.get("type", "")).upper() not in allowed_types:
                     continue
-                endpoints = set(str(value) for value in bridge.get("paper_ids") or [])
+                endpoints = {str(value) for value in bridge.get("paper_ids") or []}
                 if len(endpoints) < 2 or not endpoints <= members:
                     continue
                 for left in endpoints:
@@ -831,7 +837,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.extend(validate_arxiv_page_history(run))
         if len(run.get("paper_ids") or []) != run.get("returned_count"):
             errors.append(f"query {query_id} returned_count disagrees with paper_ids")
-        if len(run.get("paper_ids") or []) != len(set(str(value) for value in run.get("paper_ids") or [])):
+        if len(run.get("paper_ids") or []) != len({str(value) for value in run.get("paper_ids") or []}):
             errors.append(f"query {query_id} paper_ids must be unique provider-returned IDs")
         if run.get("total_count") is not None and run.get("returned_count", 0) > run.get("total_count", 0):
             errors.append(f"query {query_id} returned_count exceeds provider total_count")
@@ -848,7 +854,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             retrieved_to_complete, completed_compare = comparable(retrieved_at, retrieval_completed_at)
             if retrieved_compare < started_compare or retrieved_to_complete > completed_compare:
                 errors.append(f"query {query_id} falls outside the retrieval window")
-        for facet in set(str(value) for value in run.get("target_facets") or []) & critical:
+        for facet in {str(value) for value in run.get("target_facets") or []} & critical:
             if run.get("status") == "ok":
                 facet_query_families[facet].add(str(run.get("family")))
         needs_failure = run.get("status") != "ok" or run.get("truncated") is True
@@ -940,6 +946,77 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.append(f"PARTIAL graph expansion {expansion_id} must disclose a provider failure or exhausted call limit")
         if expansion.get("status") == "PARTIAL" and not report["search"].get("gaps"):
             errors.append(f"PARTIAL graph expansion {expansion_id} requires a search gap")
+        observations = {
+            str(item.get("paper_id")): item
+            for item in expansion.get("endpoint_reference_observations") or []
+            if isinstance(item, dict)
+        }
+        if set(observations) != endpoint_ids:
+            errors.append(f"graph expansion {expansion_id} reference observations must cover both endpoints")
+        expected_observation_statuses: list[str] = []
+        for endpoint_id in endpoint_ids:
+            observation = observations.get(endpoint_id) or {}
+            backward = next((
+                item for item in calls
+                if item.get("direction") == "BACKWARD" and str(item.get("anchor_paper_id")) == endpoint_id
+            ), None)
+            failed = any(
+                failure.get("direction") == "BACKWARD"
+                and str(failure.get("anchor_paper_id")) == endpoint_id
+                for failure in failures_for_expansion if isinstance(failure, dict)
+            )
+            expected_status = (
+                "FAILED" if failed or backward is None
+                else "NONEMPTY" if backward.get("returned_count", 0) > 0
+                else "EMPTY_AT_PROVIDER"
+            )
+            expected_observation_statuses.append(expected_status)
+            expected_count = backward.get("returned_count") if backward else None
+            if observation.get("status") != expected_status or observation.get("provider_returned_count") != expected_count:
+                errors.append(f"graph expansion {expansion_id} reference observation for {endpoint_id} disagrees with calls")
+        historical_ids = {str(value) for value in expansion.get("historical_bridge_candidate_ids") or []}
+        landscape_ids = {str(value) for value in expansion.get("landscape_bridge_candidate_ids") or []}
+        if expansion.get("cutoff"):
+            expected_historical = {
+                paper_id for paper_id in bridge_candidate_ids
+                if (papers.get(paper_id) or {}).get("cutoff_status") == "ELIGIBLE"
+            }
+            if historical_ids != expected_historical or landscape_ids != bridge_candidate_ids - expected_historical:
+                errors.append(f"graph expansion {expansion_id} historical/landscape candidate routing is inconsistent")
+        elif historical_ids or landscape_ids:
+            errors.append(f"graph expansion {expansion_id} without a cutoff cannot route historical/landscape candidates")
+        expected_window = None
+        if expansion.get("cutoff") and len(endpoint_ids) == 2:
+            endpoint_dates = [
+                (papers.get(endpoint_id) or {}).get("earliest_public_date")
+                for endpoint_id in endpoint_ids
+            ]
+            if all(endpoint_dates):
+                try:
+                    expected_window = (
+                        date.fromisoformat(expansion["cutoff"])
+                        - max(date.fromisoformat(value) for value in endpoint_dates)
+                    ).days
+                except ValueError:
+                    expected_window = None
+        if expansion.get("observation_window_days") != expected_window:
+            errors.append(f"graph expansion {expansion_id} observation_window_days is inconsistent")
+        if not expansion.get("cutoff"):
+            expected_scope = "NO_HISTORICAL_CUTOFF"
+        elif expansion.get("status") == "PARTIAL":
+            expected_scope = "INCOMPLETE_EXPANSION"
+        elif expected_historical:
+            expected_scope = "HISTORICAL_CANDIDATE_PRESENT"
+        elif expected_window is None:
+            expected_scope = "NO_HISTORICAL_CANDIDATE_ENDPOINT_DATE_UNRESOLVED"
+        elif expected_window < 0:
+            expected_scope = "NO_HISTORICAL_CANDIDATE_POST_CUTOFF_ENDPOINT"
+        elif any(status != "NONEMPTY" for status in expected_observation_statuses):
+            expected_scope = "NO_HISTORICAL_CANDIDATE_PROVIDER_COVERAGE_LIMITED"
+        else:
+            expected_scope = "NO_HISTORICAL_CANDIDATE_WITHIN_COMPLETE_EXPANSION"
+        if expansion.get("negative_result_scope") != expected_scope:
+            errors.append(f"graph expansion {expansion_id} negative_result_scope is inconsistent")
         query_papers[expansion_id] = discovered_ids
     if len(expansion_ids) != len(set(expansion_ids)) or any(not value for value in expansion_ids):
         errors.append("graph expansion IDs must be non-empty and unique")

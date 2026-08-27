@@ -1,8 +1,8 @@
-from graph_expansion import expand_graph
 import json
 from types import SimpleNamespace
 
 import cli
+from graph_expansion import expand_graph
 
 
 def paper(identifier, provider_id, citation_count, *, references=None, date="2024-01-01"):
@@ -53,6 +53,14 @@ def test_expansion_actively_fetches_graph_and_merges_bridge_source():
     assert result["status"] == "COMPLETE"
     assert result["partial_reasons"] == []
     assert result["bridge_candidate_ids"] == ["C"]
+    assert result["historical_bridge_candidate_ids"] == ["C"]
+    assert result["landscape_bridge_candidate_ids"] == []
+    assert result["observation_window_days"] == 366
+    assert result["negative_result_scope"] == "HISTORICAL_CANDIDATE_PRESENT"
+    assert result["endpoint_reference_observations"] == [
+        {"paper_id": "A", "provider_returned_count": 1, "status": "NONEMPTY"},
+        {"paper_id": "B", "provider_returned_count": 1, "status": "NONEMPTY"},
+    ]
     assert set(result["new_paper_ids"]) == {"RA", "RB", "C"}
     assert "X" not in {item["id"] for item in result["papers"]}
     source = next(item for item in result["papers"] if item["id"] == "C")
@@ -82,6 +90,9 @@ def test_graph_backstop_retains_post_cutoff_candidate_for_landscape_review():
     landscape_source = next(item for item in result["papers"] if item["id"] == "L")
     assert landscape_source["cutoff_status"] == "POST_CUTOFF"
     assert result["bridge_candidate_ids"] == ["L"]
+    assert result["historical_bridge_candidate_ids"] == []
+    assert result["landscape_bridge_candidate_ids"] == ["L"]
+    assert result["negative_result_scope"] == "NO_HISTORICAL_CANDIDATE_WITHIN_COMPLETE_EXPANSION"
 
 
 def test_full_call_budget_is_partial_even_without_provider_failure():
@@ -92,11 +103,45 @@ def test_full_call_budget_is_partial_even_without_provider_failure():
     )
     assert result["status"] == "PARTIAL"
     assert result["partial_reasons"] == ["LIMIT_REACHED"]
+    assert result["negative_result_scope"] == "NO_HISTORICAL_CUTOFF"
     forward_call = next(call for call in result["calls"] if call["direction"] == "FORWARD")
     assert forward_call == {
         "direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 2,
         "limit": 2, "possibly_truncated": True,
     }
+
+
+def test_empty_provider_references_caveat_negative_graph_result():
+    provider = FakeGraphProvider()
+    provider.references = lambda paper_id, before=None, limit=100: []
+    provider.citations = lambda paper_id, before=None, limit=100: []
+    result = expand_graph(
+        [paper("A", "W-A", 10), paper("B", "W-B", 100)],
+        "A", "B", provider, before="2025-01-01", limit=25,
+    )
+    assert result["status"] == "COMPLETE"
+    assert result["bridge_candidate_ids"] == []
+    assert result["negative_result_scope"] == "NO_HISTORICAL_CANDIDATE_PROVIDER_COVERAGE_LIMITED"
+    assert {item["status"] for item in result["endpoint_reference_observations"]} == {"EMPTY_AT_PROVIDER"}
+
+
+def test_missing_or_post_cutoff_endpoint_dates_make_negative_scope_explicit():
+    provider = FakeGraphProvider()
+    provider.references = lambda paper_id, before=None, limit=100: []
+    provider.citations = lambda paper_id, before=None, limit=100: []
+    missing = expand_graph(
+        [paper("A", "W-A", 10, date=None), paper("B", "W-B", 100)],
+        "A", "B", provider, before="2025-01-01", limit=25,
+    )
+    assert missing["observation_window_days"] is None
+    assert missing["negative_result_scope"] == "NO_HISTORICAL_CANDIDATE_ENDPOINT_DATE_UNRESOLVED"
+
+    post_cutoff = expand_graph(
+        [paper("A", "W-A", 10, date="2025-02-01"), paper("B", "W-B", 100)],
+        "A", "B", provider, before="2025-01-01", limit=25,
+    )
+    assert post_cutoff["observation_window_days"] == -31
+    assert post_cutoff["negative_result_scope"] == "NO_HISTORICAL_CANDIDATE_POST_CUTOFF_ENDPOINT"
 
 
 def test_cli_preserves_candidate_payload_and_appends_expansion_log(tmp_path, monkeypatch):

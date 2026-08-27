@@ -15,7 +15,7 @@ Required before recommending a public beta:
 - Co-citation cannot strengthen a verdict without complete citation counts and a documented calibrated threshold; post-cutoff graph routes remain visible only as non-adverse landscape bridges.
 - Verdict, Novelty Risk, Search Protocol Coverage, and Evidence Confidence obey explicit consistency rules.
 - Query IDs, discovery routes, provider page history, saturation stop reasons, failures, truncation, search gaps, evidence timestamps, and machine-readable status are preserved.
-- Citation expansion actively calls provider reference and citation APIs, merges third-paper bridge sources into the candidate pool, and records partial expansion failures or exhausted limits. Every endpoint pair in every recomputed multi-paper MPS requires a complete, non-truncated expansion; otherwise the verdict is capped at `INCONCLUSIVE` with a deterministic search-gap marker.
+- Citation expansion actively calls provider reference and citation APIs, merges third-paper bridge sources into the candidate pool, and records partial expansion failures or exhausted limits. Every endpoint pair in every recomputed multi-paper MPS requires a complete, non-truncated expansion; otherwise the verdict is capped at `INCONCLUSIVE` with a deterministic search-gap marker. Complete zero results must also expose endpoint provider-reference observations, the numeric observation window, historical/landscape routing, and a validator-recomputed negative-result scope.
 - Markdown and HTML contain no novelty percentages, uncalibrated decimals, internal ranking features, raw machine JSON, or unescaped scholarly content.
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.
@@ -50,9 +50,9 @@ Required for a mature 1.0 product, not for an honest alpha/beta Skill:
 
 ## Blocks benchmark or performance claims
 
-- Licensed reviewer-grounded cases and adjudicated labels.
+- End-to-end reviewer-grounded claim maps, Tier-2 evidence, and independently adjudicated labels beyond the current prevalence study.
 - Calibration, baselines, ablations, repeated-run stability, and performance measurements listed under P1.
 
 These are not blockers for an honestly labeled alpha or public beta, but NoveltyAudit must not make benchmark, calibration, or performance claims until they exist.
 
-Current evidence is explicitly counted in [empirical validation status](empirical-status.md). As of 2026-08-27, one licensed case has reached real provider graph expansion, zero cases have completed the full end-to-end audit, zero third-paper bridge candidates were recovered in its three fixed pairs, and benchmark metrics remain unmeasured.
+Current evidence is explicitly counted in [empirical validation status](empirical-status.md). As of 2026-08-27, all 82 licensed annotated cases have entered a deterministic no-LLM bridge base-rate study: 23 have at least two detected reviewer-named priors, 18 have complete endpoint/pair coverage, and 4 of those 18 contain a pre-cutoff co-citation bridge. This establishes prevalence and provider/maturity limitations, not end-to-end audit quality. Zero cases have completed the full reviewer-grounded claim-to-evidence pipeline; Recall@5, MRR, calibration, and reviewer prediction remain unmeasured.

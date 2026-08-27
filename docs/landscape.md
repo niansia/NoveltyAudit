@@ -21,11 +21,11 @@ The generic label “novelty audit” is crowded. Version 0.3.1 therefore distri
 
 1. frozen atomic claim facets;
 2. evidence-bound Minimal Prior Set of at most three papers;
-3. graph discovery followed by textual Bridge Evidence promotion;
+3. graph discovery with provider/maturity-scoped negatives, followed by textual Bridge Evidence promotion;
 4. earliest-public-date temporal safety;
 5. independent Novelty Risk, Search Protocol Coverage, and Evidence Confidence.
 
-Search and provider breadth are replaceable infrastructure. The composition and audit contracts are the product.
+Search and provider breadth are replaceable infrastructure. The composition and audit contracts are the product. The [82-case prevalence study](empirical-status.md) positions graph bridges as a conditional positive signal rather than the sole product headline: exact temporal reconstruction, Minimal Prior Sets, ancestor terminology, and false-comfort prevention remain the broader wedge.
 
 ## Market-category view
 

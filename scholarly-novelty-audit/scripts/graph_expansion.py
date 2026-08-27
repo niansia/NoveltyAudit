@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from deduplicate import deduplicate
 from normalize_paper import normalize_doi
 from providers.base import ProviderError
-from resolve_dates import apply_cutoff_many
+from resolve_dates import apply_cutoff_many, resolve_earliest_public_date
 
 
 def _forms(value: Any) -> set[str]:
@@ -36,6 +37,20 @@ def _anchors(paper_a: dict[str, Any], paper_b: dict[str, Any]) -> tuple[list[dic
         ordered = sorted((paper_a, paper_b), key=lambda paper: (paper["citation_count"], str(paper["id"])))
         return [ordered[0]], "LOWER_CITATION_COUNT"
     return [paper_a, paper_b], "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH"
+
+
+def _observation_window_days(
+    paper_a: dict[str, Any], paper_b: dict[str, Any], cutoff: str | None,
+) -> int | None:
+    if not cutoff:
+        return None
+    dates = [
+        resolve_earliest_public_date(paper).get("earliest_public_date")
+        for paper in (paper_a, paper_b)
+    ]
+    if not all(dates):
+        return None
+    return (date.fromisoformat(cutoff) - max(date.fromisoformat(value) for value in dates)).days
 
 
 def expand_graph(
@@ -129,6 +144,49 @@ def expand_graph(
         partial_reasons.append("PROVIDER_FAILURE")
     if any(call["possibly_truncated"] for call in calls):
         partial_reasons.append("LIMIT_REACHED")
+    endpoint_reference_observations = []
+    for endpoint_id in (paper_a_id, paper_b_id):
+        backward = next((
+            call for call in calls
+            if call["direction"] == "BACKWARD" and call["anchor_paper_id"] == endpoint_id
+        ), None)
+        failed = any(
+            failure["direction"] == "BACKWARD" and failure["anchor_paper_id"] == endpoint_id
+            for failure in failures
+        )
+        endpoint_reference_observations.append({
+            "paper_id": endpoint_id,
+            "provider_returned_count": backward["returned_count"] if backward else None,
+            "status": (
+                "FAILED" if failed or backward is None
+                else "NONEMPTY" if backward["returned_count"] > 0
+                else "EMPTY_AT_PROVIDER"
+            ),
+        })
+    merged_index = {str(paper.get("id")): paper for paper in merged}
+    historical_bridge_candidate_ids = [
+        paper_id for paper_id in merged_bridge_ids
+        if before and (merged_index.get(paper_id) or {}).get("cutoff_status") == "ELIGIBLE"
+    ]
+    landscape_bridge_candidate_ids = [
+        paper_id for paper_id in merged_bridge_ids
+        if before and (merged_index.get(paper_id) or {}).get("cutoff_status") != "ELIGIBLE"
+    ]
+    observation_window_days = _observation_window_days(paper_a, paper_b, before)
+    if not before:
+        negative_result_scope = "NO_HISTORICAL_CUTOFF"
+    elif partial_reasons:
+        negative_result_scope = "INCOMPLETE_EXPANSION"
+    elif historical_bridge_candidate_ids:
+        negative_result_scope = "HISTORICAL_CANDIDATE_PRESENT"
+    elif observation_window_days is None:
+        negative_result_scope = "NO_HISTORICAL_CANDIDATE_ENDPOINT_DATE_UNRESOLVED"
+    elif observation_window_days < 0:
+        negative_result_scope = "NO_HISTORICAL_CANDIDATE_POST_CUTOFF_ENDPOINT"
+    elif any(item["status"] != "NONEMPTY" for item in endpoint_reference_observations):
+        negative_result_scope = "NO_HISTORICAL_CANDIDATE_PROVIDER_COVERAGE_LIMITED"
+    else:
+        negative_result_scope = "NO_HISTORICAL_CANDIDATE_WITHIN_COMPLETE_EXPANSION"
     return {
         "expansion_id": expansion_id,
         "status": "PARTIAL" if partial_reasons else "COMPLETE",
@@ -144,6 +202,11 @@ def expand_graph(
         "calls": calls,
         "failures": failures,
         "bridge_candidate_ids": merged_bridge_ids,
+        "historical_bridge_candidate_ids": historical_bridge_candidate_ids,
+        "landscape_bridge_candidate_ids": landscape_bridge_candidate_ids,
+        "endpoint_reference_observations": endpoint_reference_observations,
+        "observation_window_days": observation_window_days,
+        "negative_result_scope": negative_result_scope,
         "discovered_paper_ids": discovered_ids,
         "new_paper_ids": new_ids,
         "papers": merged,

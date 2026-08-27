@@ -2,9 +2,9 @@ from copy import deepcopy
 
 from validate_output import (
     candidate_snapshot_hash,
+    claim_map_hash,
     graph_expansion_gap_marker,
     graph_expansion_obligations,
-    claim_map_hash,
     validate_arxiv_page_history,
     validate_report,
 )
@@ -531,6 +531,14 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],
+        "historical_bridge_candidate_ids": ["C"],
+        "landscape_bridge_candidate_ids": [],
+        "endpoint_reference_observations": [
+            {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
+            {"paper_id": "B", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
+        ],
+        "observation_window_days": 900,
+        "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
         "new_paper_ids": [],
     }]
@@ -539,3 +547,18 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
 
     report["search"].pop("graph_expansions")
     assert any("unknown discovery query IDs" in error for error in validate_report(report))
+
+
+def test_graph_negative_diagnostics_are_recomputed(valid_report):
+    report = deepcopy(valid_report)
+    expansion = report["search"]["graph_expansions"][0]
+    expansion["observation_window_days"] = 1
+    expansion["endpoint_reference_observations"][0]["status"] = "NONEMPTY"
+    expansion["historical_bridge_candidate_ids"] = []
+    expansion["landscape_bridge_candidate_ids"] = ["C"]
+    expansion["negative_result_scope"] = "NO_HISTORICAL_CANDIDATE_WITHIN_COMPLETE_EXPANSION"
+    errors = validate_report(report)
+    assert any("observation_window_days is inconsistent" in error for error in errors)
+    assert any("reference observation for A disagrees" in error for error in errors)
+    assert any("historical/landscape candidate routing is inconsistent" in error for error in errors)
+    assert any("negative_result_scope is inconsistent" in error for error in errors)

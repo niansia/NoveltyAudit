@@ -30,23 +30,70 @@ Targeted title-resolution diagnostics retrieved all three reviewer-named works f
 
 Graph expansion results with verified OpenAlex work IDs:
 
-| Pair | Backward records | Forward records | Limit exhausted | Third-paper bridge candidates |
-| --- | ---: | ---: | --- | ---: |
-| SNIP × Super Mario | 22 + 0 | 2 | No | 0 |
-| SNIP × HFT | 22 + 0 | 0 | No | 0 |
-| Super Mario × HFT | 0 + 0 | 0 | No | 0 |
+| Pair | Backward records | Forward records | Opportunity after newer endpoint | Third-paper bridge candidates |
+| --- | ---: | ---: | ---: | ---: |
+| SNIP × Super Mario | 22 + 0 | 2 | 197 days | 0 |
+| SNIP × HFT | 22 + 0 | 0 | 22 days | 0 |
+| Super Mario × HFT | 0 + 0 | 0 | 22 days | 0 |
 
-This is a valid negative graph result, not a product success claim. It shows that the first reviewer `not_novel` label does not come with a qualifying third-paper graph bridge under this cutoff and provider snapshot. A full NoveltyAudit report still requires frozen facet decomposition, Tier-2 evidence, bibliography normalization, MPS recomputation, and independent adjudication.
+The three zeros are not evidence that the three works were historically disconnected. Semantic Scholar reports 49, 74, and 75 references for SNIP, Super Mario, and HFT, while the corresponding OpenAlex snapshot exposes 29, 0, and 0. Every pair therefore has an OpenAlex endpoint-coverage caveat, and every pair also has less than 18 months between its newer endpoint and the cutoff. The correct result is `ZERO_WITH_SHORT_WINDOW_AND_COVERAGE_CAVEAT`, not an unqualified negative bridge finding.
 
 The pilot also exposed a real integration defect: deduplication could preserve the first canonical work ID while overwriting its provider ID with a duplicate OpenAlex version. That caused a false zero-reference backward expansion. Version 0.3.1 now preserves the canonical first version's provider ID; the table above is from the corrected rerun.
+
+## 82-case bridge base-rate measurement
+
+The official archive's 82 annotated cases were measured without LLMs, facet decomposition, or Tier-2 retrieval. Reviewer novelty statements were deterministically linked to paper records already present in the release, including numbered reviewer bibliographies. Semantic Scholar supplied batched identifiers and reference counts; OpenAlex supplied work resolution, reference coverage, and unfiltered co-citation queries. Each case uses the day before the earlier of a matched target public date and the official [ICLR 2025 full-paper deadline](https://iclr.cc/Conferences/2025/CallForPapers), 2024-10-01. Provider-side date filtering was not used for bridge queries; the cutoff was applied locally.
+
+The complete aggregate is machine-readable in [`bridge-base-rate-summary.json`](bridge-base-rate-summary.json).
+
+| Measurement | Result |
+| --- | ---: |
+| Annotated cases represented | 82 / 82 |
+| Cases with at least one deterministically detected named prior | 37 |
+| Cases with at least two named priors | 23 / 82 (28.05% conservative lower bound) |
+| Named priors | 83 |
+| OpenAlex-resolved priors | 77 / 83 (92.77%) |
+| Priors with nonempty OpenAlex references | 21 / 83 (25.30%) |
+| Confirmed OpenAlex-empty / Semantic Scholar-nonempty gaps | 35 / 83 (42.17%) |
+| Complete multi-prior cases | 18 |
+| Complete endpoint pairs | 72 / 74 |
+| Complete cases with at least one pre-cutoff bridge | 4 / 18 (22.22%) |
+| Complete pairs with at least one pre-cutoff bridge | 12 / 72 (16.67%) |
+| Pair bridge rate after citation-count sensitivity guards | 8.47%–12.12% |
+| Complete pairs with less than 18 months of observation | 61 / 72 (84.72%) |
+| Median pair opportunity window | 224 days |
+
+The 60 complete zero-bridge pairs split into four materially different states:
+
+| Zero state | Pairs |
+| --- | ---: |
+| Short window and provider-coverage caveat | 56 |
+| Provider-coverage caveat only | 2 |
+| Short observation window only | 1 |
+| Zero under a complete, mature, nonempty provider snapshot | 1 |
+
+Two additional high-base-rate pairs returned more than the 1,000-work measurement cap and are `UNINTERPRETABLE_INCOMPLETE_QUERY`; they are excluded from all zero and complete-case denominators. Citation-count sensitivity was reported at endpoint thresholds of 50, 100, 250, 500, and 1,000 rather than choosing an unsupported universal field threshold.
+
+### Product interpretation
+
+Bridge Evidence is not a universal primary signal. It is a conditional positive signal for sufficiently mature, adequately covered literature neighborhoods. In this sample, raw case prevalence is below 30%, pair prevalence falls to roughly 9%–12% under citation-count guards, OpenAlex backward-reference coverage is often missing, and most endpoint pairs are too recent to have accumulated a survey or co-citation trail.
+
+The product hierarchy is therefore:
+
+1. exact historical cutoff, frozen claim facets, and evidence-bound Minimal Prior Sets;
+2. ancestor terminology and overlooked-killer retrieval;
+3. Bridge Evidence as a useful positive signal in mature fields, never as silent negative reassurance.
+
+Runtime `expand-graph` records now expose endpoint reference observations, the numeric observation window, historical versus landscape candidates, and a deterministic negative-result scope. A zero cannot be reported without these diagnostics.
 
 ## Current measured counters
 
 | Counter | Current value |
 | --- | ---: |
-| Licensed reviewer-grounded cases exercised through real provider graph expansion | 1 |
+| Licensed annotated cases included in deterministic batch measurement | 82 |
 | Complete end-to-end reviewer-grounded NoveltyAudit reports | 0 |
-| Third-paper bridge candidates recovered across the three fixed pilot pairs | 0 |
-| Published benchmark metrics | N/A — not measured |
+| Complete multi-prior cases in the bridge base-rate study | 18 |
+| Complete cases with a pre-cutoff graph bridge | 4 |
+| Published retrieval Recall@5 / MRR | N/A — not measured |
 
-The next milestone is a preregistered multi-case pilot with blind query construction and independent annotation/adjudication. Until then, NoveltyAudit must not claim retrieval quality, bridge recall, calibration, or reviewer prediction performance.
+This measurement answers prevalence, provider coverage, age, and graph base-rate questions; it does not validate facet coverage, textual bridge meaning, retrieval quality, or reviewer prediction. The next milestone remains a preregistered multi-case end-to-end pilot with blind query construction and independent annotation/adjudication.

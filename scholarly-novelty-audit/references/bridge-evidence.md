@@ -8,6 +8,8 @@ First discover graph candidates deterministically: direct citation, co-citation 
 
 Absence of a bridge is interpretable only after a complete graph expansion. If any backward or forward call returns its full requested limit, record `possibly_truncated=true`, set the expansion to `PARTIAL` with `LIMIT_REACHED`, disclose the pair-specific search gap, and use `INCONCLUSIVE`. Do not convert “none found within the budget” into `FRAGMENTED_PRECEDENT`.
 
+Even a complete zero is conditional. Inspect `endpoint_reference_observations`: `EMPTY_AT_PROVIDER` means only that this provider returned no backward records, not that the paper has no bibliography. Report `observation_window_days`, measured from the newer endpoint's earliest verified public date to the cutoff, because recent pairs may not have had time to accumulate a survey or co-citing third paper. Missing endpoint dates and post-cutoff endpoints receive distinct uninterpretable scopes. Use the deterministic `negative_result_scope` and retain the numeric facts; never collapse provider coverage, literature maturity, date uncertainty, and evidence of absence into the same zero.
+
 Then inspect text and classify only supported relations:
 
 - `EXPLICIT_EXTENSION`: one work states that it extends, adapts, or builds on the other;

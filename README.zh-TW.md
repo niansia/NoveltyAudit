@@ -9,7 +9,7 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 ## 四個核心差異
 
 - **Minimal Prior Set：** 找最小聯合覆蓋集合，而非單篇相似度排名。
-- **Bridge Evidence：** 沒有可追溯的引用、延伸、taxonomy、benchmark 或組合證據，就只能判為 fragmented。
+- **Bridge Evidence：** 可追溯的引用、延伸、taxonomy、benchmark 或組合證據能強化組合風險；「沒找到」只有在擴張完整、provider 覆蓋與觀察窗都明示時才可解讀。
 - **Strict Temporal Cutoff：** 依最早可驗證公開日守門；只有年份的資料不得偷塞 1 月 1 日。
 - **三軸分離：** Novelty Risk、Search Protocol Coverage、Evidence Confidence 永不混成一個假精確分數。
 
@@ -20,7 +20,7 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - DOI／arXiv／標題正規化、preprint 與正式版本去重。
 - 最早公開日解析與嚴格 cutoff 狀態。
 - 1–3 篇 evidence-bound Minimal Prior Set 求解。
-- 主動 backward/forward citation expansion、citation graph bridge discovery、高引文 base-rate 防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
+- 主動 backward/forward citation expansion、citation graph bridge discovery、端點 reference 覆蓋狀態、觀察窗、高引文 base-rate 防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
 - 公開 PDF／HTML／文字的 Tier-2 全文取得、private-address 阻擋、下載大小上限、文字抽取、內容雜湊，以及 evidence-to-acquisition 驗證。
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
@@ -37,7 +37,11 @@ MPS 搜尋界限固定為 `K ≤ 3`。「沒有找到」只代表沒有找到三
 
 arXiv 翻頁以 API 原始 entries 數量推進，不會以 cutoff 過濾後的篇數計算 offset。搜尋計畫也會讓至少一個 query-family run 不套用 provider-side cutoff，作為 temporal-recall backstop，再由最早公開日 resolver 做最終 eligibility 判定。
 
-每個多篇 MPS 的端點 pair 都必須有 `COMPLETE` graph expansion。任何 call 回滿設定的 limit 都會標為可能截斷，使 expansion 成為 `PARTIAL/LIMIT_REACHED`；此時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap，不能用「有界範圍內沒找到 bridge」支撐 `FRAGMENTED_PRECEDENT`。OpenAlex backward expansion 會在日期過濾使前一批數量不足時繼續掃描所有 raw reference IDs；Semantic Scholar 會追蹤 graph `next` offset。歷史 graph retrieval 不在 provider 端先套 cutoff，而由本地 earliest-public-date resolver 作最終裁決，並保留 post-cutoff 資料作 landscape review。
+每個多篇 MPS 的端點 pair 都必須有 `COMPLETE` graph expansion。任何 call 回滿設定的 limit 都會標為可能截斷，使 expansion 成為 `PARTIAL/LIMIT_REACHED`；此時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap，不能用「有界範圍內沒找到 bridge」支撐 `FRAGMENTED_PRECEDENT`。OpenAlex backward expansion 會在日期過濾使前一批數量不足時繼續掃描所有 raw reference IDs；Semantic Scholar 會追蹤 graph `next` offset。歷史 graph retrieval 不在 provider 端先套 cutoff，而由本地 earliest-public-date resolver 作最終裁決，並保留 post-cutoff 資料作 landscape review。每次擴張還會記錄 `endpoint_reference_observations`、`observation_window_days`、歷史／現況候選與 `negative_result_scope`；provider 回傳空 bibliography 只是覆蓋警訊，端點日期缺失或晚於 cutoff 會得到獨立的不可解讀 scope，短觀察窗則表示 bridge 可能尚無時間形成。
+
+## 目前的真實量測
+
+TUdatalib 的 82 個有標註案例已完成無 LLM 批次量測：37 案能確定連到 reviewer 指名先行工作，23 案至少有兩篇（28.05% 的保守下限）。在 18 個所有端點與 pair 都完整的多先行工作案例中，4 案有 cutoff 前 co-citation bridge（22.22%）；但 84.72% 的完整 pair 觀察窗少於 18 個月，OpenAlex 也只對 25.30% 的指名先行工作提供非空 references。高引用門檻敏感度下，pair bridge rate 約為 8.47%–12.12%。因此 Bridge Evidence 應定位為成熟且 provider 覆蓋足夠領域的條件式正向訊號，不是通用的負向判定器。完整數據與限制見 [empirical status](docs/empirical-status.md)。
 
 ## 安裝
 

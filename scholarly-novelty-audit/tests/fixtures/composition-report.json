@@ -133,6 +133,14 @@
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],
+        "historical_bridge_candidate_ids": ["C"],
+        "landscape_bridge_candidate_ids": [],
+        "endpoint_reference_observations": [
+          {"paper_id": "A", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER"},
+          {"paper_id": "B", "provider_returned_count": 1, "status": "NONEMPTY"}
+        ],
+        "observation_window_days": 900,
+        "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
         "new_paper_ids": []
       }
