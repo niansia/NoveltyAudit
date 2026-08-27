@@ -4,6 +4,10 @@
 
 <p align="center"><strong>沒有任何一篇 paper 完整撞你？也許三篇合起來會。</strong></p>
 
+<p align="center">
+  <a href="README.md">English</a> · <strong>繁體中文</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
 NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性稽核 Agent Skill。它不只問「哪篇最像」，而是問：
 
 > 最少需要哪幾篇先行工作，才能共同覆蓋這個 claim 的關鍵部分？在歷史 cutoff 前，有沒有證據顯示它們曾被有意義地連結？
@@ -20,10 +24,29 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 | Python | 3.10+ |
 | 學術 provider 網路存取 | 是 |
 | 可執行本地 scripts | 是 |
-| 付費 LLM API | 否 |
+| 額外付費 LLM API key | 否 |
 | OpenAlex／Semantic Scholar API key | 選用 |
 
-從 [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases) 下載目前的 `scholarly-novelty-audit-v*.zip` 與 `.sha256`，驗證後解壓；也可以直接 clone：
+### 一行安裝
+
+若已有 Node.js 與 `npx`，開源 `skills` CLI 能辨識 repo 內的 skill：
+
+```bash
+npx skills add niansia/NoveltyAudit --skill scholarly-novelty-audit --global
+```
+
+這個第三方 installer 預設會記錄匿名安裝 telemetry；設定 `DISABLE_TELEMETRY=1` 可退出。不想使用 installer 時，請採下面的手動方式。
+
+### 手動安裝
+
+從 [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases) 下載目前的 `scholarly-novelty-audit-v*.zip` 與 `.sha256`，再驗證檔案：
+
+```bash
+sha256sum -c scholarly-novelty-audit-v*.zip.sha256       # Linux
+shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256  # macOS
+```
+
+驗證後解壓；也可以直接 clone：
 
 ```bash
 git clone https://github.com/niansia/NoveltyAudit.git
@@ -49,7 +72,14 @@ Codex 可安裝在 `~/.codex/skills/`，Claude Code 可安裝在 `~/.claude/skil
 
 ## 真實輸出長什麼樣
 
-以下是 repo 內 [golden composition fixture](scholarly-novelty-audit/tests/fixtures/composition-report.json) 經正式 exporter 產生的英文節錄，是可重現的契約範例，**不是 benchmark 結果**。
+<p align="center">
+  <img src="docs/assets/example-report.png" alt="NoveltyAudit report card：HIGH novelty risk、BROAD search protocol coverage、STRONG evidence confidence；Paper A 與 B 構成兩篇的 Minimal Prior Set，Paper C 則是獨立的 taxonomy bridge source" width="100%">
+</p>
+
+由 repo 內的合成 [golden composition fixture](scholarly-novelty-audit/tests/fixtures/composition-report.json) 重現。**這是契約範例，不是 benchmark 結果。** Paper C 提供 bridge evidence，不是兩篇 MPS 的成員。
+
+<details>
+<summary>無障礙文字版</summary>
 
 ```text
 NoveltyAudit Report
@@ -92,6 +122,8 @@ we introduce a specific interaction rule between them.
 Search Gaps
 One workshop paper had no full text.
 ```
+
+</details>
 
 `BROAD` 只代表這套有界 protocol 被廣泛執行，不代表找回所有相關文獻。
 
@@ -177,6 +209,6 @@ python -m pytest scholarly-novelty-audit/tests -q
 skills-ref validate ./scholarly-novelty-audit
 ```
 
-下一個里程碑是 preregistered、具授權、end-to-end reviewer-grounded pilot。相關邊界見 [release acceptance](docs/release-acceptance.md)、[benchmark policy](scholarly-novelty-audit/benchmark/README.md) 與 [data licenses](docs/DATA_LICENSES.md)。
+下一個里程碑是 preregistered、具授權、end-to-end reviewer-grounded pilot。相關邊界見 [release acceptance](docs/release-acceptance.md)、[benchmark policy](scholarly-novelty-audit/benchmark/README.md) 與 [data licenses](docs/DATA_LICENSES.md)。Audit 分享、安裝求助、研究方法與新想法可放到 [GitHub Discussions](https://github.com/niansia/NoveltyAudit/discussions)。
 
 如果 NoveltyAudit 找到一篇可能比 Reviewer #2 更早找到的 paper，歡迎替 repo 點 Star。

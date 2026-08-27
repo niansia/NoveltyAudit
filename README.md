@@ -12,6 +12,7 @@
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <a href="https://github.com/agentskills/agentskills"><img alt="Agent Skills" src="https://img.shields.io/badge/Agent%20Skills-compatible-7C3AED"></a>
   <a href="README.zh-TW.md"><img alt="繁體中文" src="https://img.shields.io/badge/README-繁體中文-0F766E"></a>
+  <a href="README.zh-CN.md"><img alt="简体中文" src="https://img.shields.io/badge/README-简体中文-2563EB"></a>
 </p>
 
 NoveltyAudit is an evidence-first Agent Skill for adversarial scholarly novelty audits. It asks a harder question than “Which paper is most similar?”:
@@ -30,10 +31,29 @@ The result is not a novelty score. It is an auditable claim map, historically el
 | Python | 3.10+ |
 | Network access to scholarly providers | Yes |
 | Permission to execute local scripts | Yes |
-| Paid LLM API | No |
+| Separate paid LLM API key | No |
 | OpenAlex or Semantic Scholar API key | Optional |
 
-Download the current `scholarly-novelty-audit-v*.zip` and its `.sha256` file from [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases), verify the archive, and extract it. You can also clone the repository:
+### One-line install
+
+If Node.js and `npx` are available, the open-source `skills` CLI detects the nested skill and installs it for a supported agent:
+
+```bash
+npx skills add niansia/NoveltyAudit --skill scholarly-novelty-audit --global
+```
+
+The third-party installer records anonymous install telemetry by default; set `DISABLE_TELEMETRY=1` to opt out. Use the manual path below if you do not want to use the installer.
+
+### Manual install
+
+Download the current `scholarly-novelty-audit-v*.zip` and its `.sha256` file from [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases), then verify the archive:
+
+```bash
+sha256sum -c scholarly-novelty-audit-v*.zip.sha256       # Linux
+shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256  # macOS
+```
+
+Extract the verified archive, or clone the repository:
 
 ```bash
 git clone https://github.com/niansia/NoveltyAudit.git
@@ -68,7 +88,14 @@ Keep the installed folder named `scholarly-novelty-audit`.
 
 ## Example audit result
 
-The excerpt below is rendered by the bundled exporter from the committed [golden composition fixture](scholarly-novelty-audit/tests/fixtures/composition-report.json). It is a reproducible contract example, **not a benchmark result**.
+<p align="center">
+  <img src="docs/assets/example-report.png" alt="NoveltyAudit report card: HIGH novelty risk, BROAD search protocol coverage, STRONG evidence confidence, a two-paper Minimal Prior Set formed by Papers A and B, and Paper C as a separate verified taxonomy-bridge source" width="100%">
+</p>
+
+Reproduced from the committed synthetic [golden composition fixture](scholarly-novelty-audit/tests/fixtures/composition-report.json). **Contract example, not a benchmark result.** Paper C supplies bridge evidence; it is not a member of the two-paper MPS.
+
+<details>
+<summary>Accessible text version</summary>
 
 ```text
 NoveltyAudit Report
@@ -112,6 +139,8 @@ Search Gaps
 One workshop paper had no full text.
 ```
 
+</details>
+
 `BROAD` describes execution of a bounded protocol; it does not claim complete recall of all relevant literature.
 
 ## When to use it
@@ -136,7 +165,7 @@ If dates, full text, graph coverage, or search obligations are insufficient, the
 | Emits one confidence or novelty score | Separates **Novelty Risk**, **Search Protocol Coverage**, and **Evidence Confidence** |
 | Turns “no results” into reassurance | Records coverage limits and permits **INCONCLUSIVE** |
 
-Search breadth is replaceable infrastructure. The product is the composition, evidence, temporal, and audit contract. See the dated [landscape review](docs/landscape.md) for comparisons with adjacent open-source projects.
+Retrieval breadth is infrastructure; NoveltyAudit's differentiator is the composition, evidence, temporal, and audit contract. See the dated [landscape review](docs/landscape.md) for comparisons with adjacent open-source projects.
 
 ## How it works
 
@@ -250,6 +279,6 @@ The next milestone is a preregistered, licensed, end-to-end reviewer-grounded pi
 
 ## Contributing
 
-High-value contributions are public reviewer-grounded cases, provider adapters, date golden tests, bridge-evidence edge cases, and report-faithfulness failures. Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [release packaging](docs/releasing.md). Citation metadata is in [CITATION.cff](CITATION.cff); source code is licensed under [Apache-2.0](LICENSE).
+High-value contributions are public reviewer-grounded cases, provider adapters, date golden tests, bridge-evidence edge cases, and report-faithfulness failures. Share audit results, installation questions, methodology discussions, and ideas in [GitHub Discussions](https://github.com/niansia/NoveltyAudit/discussions); use Issues for reproducible defects. Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [release packaging](docs/releasing.md). Citation metadata is in [CITATION.cff](CITATION.cff); source code is licensed under [Apache-2.0](LICENSE).
 
 If NoveltyAudit finds a paper your reviewer could have found first, star the repo.

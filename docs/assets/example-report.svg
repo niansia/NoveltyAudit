@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">NoveltyAudit reproducible example report card</title>
+  <desc id="desc">A strong composition risk report. Papers A and B form a two-paper Minimal Prior Set. Paper C supplies taxonomy bridge evidence but is not an MPS member. Novelty risk is high, search protocol coverage is broad, and evidence confidence is strong.</desc>
+  <rect width="1600" height="900" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="14" height="900" fill="#6D46D8"/>
+
+  <text x="70" y="58" fill="#6D46D8" font-family="Arial, Segoe UI, sans-serif" font-size="18" font-weight="700" letter-spacing="1.2">NOVELTYAUDIT / REPRODUCIBLE REPORT CARD</text>
+  <text x="70" y="120" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="48" font-weight="700">Strong composition risk</text>
+  <text x="70" y="166" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="23">Claim: An architecture with adaptive memory and compression-aware selection</text>
+  <rect x="70" y="188" width="220" height="38" rx="19" fill="#F0EBFF"/>
+  <text x="92" y="214" fill="#5D35C7" font-family="Arial, Segoe UI, sans-serif" font-size="16" font-weight="700">CUTOFF · 2025-09-18</text>
+  <rect x="304" y="188" width="98" height="38" rx="19" fill="#F3F4F6"/>
+  <text x="328" y="214" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="16" font-weight="700">STRICT</text>
+
+  <rect x="70" y="258" width="466" height="108" rx="18" fill="#FFF2EE" stroke="#D35B32" stroke-width="2"/>
+  <text x="96" y="291" fill="#A63D1C" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="0.8">NOVELTY RISK</text>
+  <text x="96" y="339" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="34" font-weight="700">HIGH</text>
+  <text x="96" y="359" fill="#6B7280" font-family="Arial, Segoe UI, sans-serif" font-size="15">combined prior work covers both critical facets</text>
+
+  <rect x="567" y="258" width="466" height="108" rx="18" fill="#EEF5FF" stroke="#3B82F6" stroke-width="2"/>
+  <text x="593" y="291" fill="#2563EB" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="0.8">SEARCH PROTOCOL COVERAGE</text>
+  <text x="593" y="339" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="34" font-weight="700">BROAD</text>
+  <text x="593" y="359" fill="#6B7280" font-family="Arial, Segoe UI, sans-serif" font-size="15">bounded protocol execution, not complete recall</text>
+
+  <rect x="1064" y="258" width="466" height="108" rx="18" fill="#EAF8F5" stroke="#0F7D73" stroke-width="2"/>
+  <text x="1090" y="291" fill="#0F7D73" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="0.8">EVIDENCE CONFIDENCE</text>
+  <text x="1090" y="339" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="34" font-weight="700">STRONG</text>
+  <text x="1090" y="359" fill="#6B7280" font-family="Arial, Segoe UI, sans-serif" font-size="15">full-text spans bound to facets</text>
+
+  <rect x="70" y="398" width="692" height="316" rx="20" fill="#FAFAFC" stroke="#D8DCE5" stroke-width="2"/>
+  <text x="100" y="443" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="28" font-weight="700">Minimal Prior Set</text>
+  <rect x="622" y="417" width="108" height="34" rx="17" fill="#EAF8F5"/>
+  <text x="645" y="440" fill="#0F7D73" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700">SIZE 2</text>
+
+  <rect x="100" y="472" width="632" height="82" rx="14" fill="#FFFFFF" stroke="#DDD5FA" stroke-width="2"/>
+  <circle cx="138" cy="513" r="22" fill="#6D46D8"/>
+  <text x="138" y="520" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Segoe UI, sans-serif" font-size="20" font-weight="700">A</text>
+  <text x="176" y="502" fill="#6D46D8" font-family="Arial, Segoe UI, sans-serif" font-size="14" font-weight="700" letter-spacing="0.7">TOP KILLER 01</text>
+  <text x="176" y="530" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="22" font-weight="700">Adaptive Memory Systems</text>
+  <text x="584" y="520" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="17">covers F1</text>
+
+  <rect x="100" y="570" width="632" height="82" rx="14" fill="#FFFFFF" stroke="#C9DEFF" stroke-width="2"/>
+  <circle cx="138" cy="611" r="22" fill="#3B82F6"/>
+  <text x="138" y="618" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Segoe UI, sans-serif" font-size="20" font-weight="700">B</text>
+  <text x="176" y="600" fill="#2563EB" font-family="Arial, Segoe UI, sans-serif" font-size="14" font-weight="700" letter-spacing="0.7">TOP KILLER 02</text>
+  <text x="176" y="628" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="22" font-weight="700">Compression-aware Selection</text>
+  <text x="584" y="618" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="17">covers F2</text>
+
+  <rect x="100" y="670" width="632" height="10" rx="5" fill="#DDF4EF"/>
+  <rect x="100" y="670" width="316" height="10" rx="5" fill="#6D46D8"/>
+  <rect x="404" y="670" width="328" height="10" rx="5" fill="#3B82F6"/>
+  <text x="416" y="703" text-anchor="middle" fill="#0F7D73" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700">A + B jointly cover F1 + F2 · MPS bound K ≤ 3</text>
+
+  <rect x="790" y="398" width="740" height="316" rx="20" fill="#FAFAFC" stroke="#D8DCE5" stroke-width="2"/>
+  <text x="820" y="443" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="28" font-weight="700">Bridge Evidence</text>
+  <rect x="1340" y="417" width="158" height="34" rx="17" fill="#EAF8F5"/>
+  <text x="1362" y="440" fill="#0F7D73" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700">TEXT VERIFIED</text>
+
+  <line x1="915" y1="516" x2="1120" y2="516" stroke="#22252B" stroke-width="3"/>
+  <line x1="1200" y1="516" x2="1405" y2="516" stroke="#22252B" stroke-width="3"/>
+  <circle cx="885" cy="516" r="30" fill="#6D46D8"/>
+  <text x="885" y="525" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Segoe UI, sans-serif" font-size="25" font-weight="700">A</text>
+  <circle cx="1160" cy="516" r="40" fill="#D35B32"/>
+  <text x="1160" y="525" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Segoe UI, sans-serif" font-size="25" font-weight="700">C</text>
+  <circle cx="1435" cy="516" r="30" fill="#3B82F6"/>
+  <text x="1435" y="525" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Segoe UI, sans-serif" font-size="25" font-weight="700">B</text>
+  <text x="1160" y="580" text-anchor="middle" fill="#A63D1C" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="0.6">BRIDGE SOURCE · PAPER C</text>
+  <text x="1160" y="608" text-anchor="middle" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="21" font-weight="700">A Synthesis of Memory and Compression</text>
+  <text x="1160" y="638" text-anchor="middle" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="17">TAXONOMY_BRIDGE · evidence E3 · TIER_2_FULLTEXT</text>
+  <rect x="820" y="660" width="680" height="34" rx="8" fill="#FFF2EE"/>
+  <text x="1160" y="683" text-anchor="middle" fill="#8B351B" font-family="Arial, Segoe UI, sans-serif" font-size="16" font-weight="700">Paper C supplies bridge evidence; it is not a member of the two-paper MPS.</text>
+
+  <rect x="70" y="744" width="1460" height="104" rx="18" fill="#F3F4F6"/>
+  <text x="100" y="782" fill="#6D46D8" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700" letter-spacing="0.8">RESIDUAL NOVELTY</text>
+  <text x="100" y="820" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="24" font-weight="700">The exact interaction rule may survive if it differs from the bridge source.</text>
+  <text x="1165" y="782" fill="#596273" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700">SEARCH GAP</text>
+  <text x="1165" y="820" fill="#16181D" font-family="Arial, Segoe UI, sans-serif" font-size="18">1 workshop paper had no full text</text>
+
+  <text x="70" y="880" fill="#6B7280" font-family="Arial, Segoe UI, sans-serif" font-size="15">Reproduced from the committed synthetic golden fixture · Contract example, not a benchmark result</text>
+  <text x="1530" y="880" text-anchor="end" fill="#6D46D8" font-family="Arial, Segoe UI, sans-serif" font-size="15" font-weight="700">NOVELTYAUDIT</text>
+</svg>
