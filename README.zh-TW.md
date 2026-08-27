@@ -4,81 +4,35 @@
 
 <p align="center"><strong>沒有任何一篇 paper 完整撞你？也許三篇合起來會。</strong></p>
 
-NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性稽核 Agent Skill。它不只問「哪篇最像」，而是找出最少 1–3 篇既有工作能否共同覆蓋核心 claim，並要求歷史上的 Bridge Evidence 才能升格成強烈的組合式風險。
+NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性稽核 Agent Skill。它不只問「哪篇最像」，而是問：
 
-<p align="center">
-  <img src="docs/assets/architecture.png" alt="NoveltyAudit 架構：claim freeze、多來源檢索、證據綁定、Minimal Prior Set 與 graph expansion、deterministic validation 與匯出" width="100%">
-</p>
+> 最少需要哪幾篇先行工作，才能共同覆蓋這個 claim 的關鍵部分？在歷史 cutoff 前，有沒有證據顯示它們曾被有意義地連結？
 
-## 四個核心差異
+輸出不是單一 novelty 分數，而是可稽核的 claim map、歷史上合格的證據、Minimal Prior Set、Bridge Evidence、仍然存活的新穎性，以及無法確定之處。
 
-- **Minimal Prior Set：** 找最小聯合覆蓋集合，而非單篇相似度排名。
-- **Bridge Evidence：** 可追溯的引用、延伸、taxonomy、benchmark 或組合證據能強化組合風險；「沒找到」只有在擴張完整、provider 覆蓋與觀察窗都明示時才可解讀。
-- **Strict Temporal Cutoff：** 依最早可驗證公開日守門；只有年份的資料不得偷塞 1 月 1 日。
-- **三軸分離：** Novelty Risk、Search Protocol Coverage、Evidence Confidence 永不混成一個假精確分數。
+> 本頁是**精簡繁體中文版**。完整技術契約、CLI 與驗證規則請看英文 [README](README.md) 與 [SKILL.md](scholarly-novelty-audit/SKILL.md)。
 
-## 82 個 reviewer-annotated cases 的探索性量測
+## 快速開始
 
-以下是 82 個具授權 reviewer annotation 案例的探索性量測，不是 NoveltyAudit 的 benchmark 分數：
+| 需求 | 是否必要 |
+|---|---|
+| Agent Skills 相容宿主 | 是 |
+| Python | 3.10+ |
+| 學術 provider 網路存取 | 是 |
+| 可執行本地 scripts | 是 |
+| 付費 LLM API | 否 |
+| OpenAlex／Semantic Scholar API key | 選用 |
 
-| 量測 | 觀察結果 | 可以支持的解讀 |
-|---|---:|---|
-| 至少含兩篇 deterministically detected reviewer-named priors 的案例 | **23/82（28.05%）** | 此樣本中的 detected mention rate；不是 composition objection 盛行率 |
-| 有 cutoff 前 co-citation bridge 的完整多前作案例 | **4/18（22.22%）** | 此樣本中的少數訊號，且不確定性很寬（exact 95% interval：6.41%–47.64%） |
-| OpenAlex 加 Semantic Scholar fallback 後，backward references 非空的指名前作 | **56/83（67.47%）** | 實測 provider 覆蓋，不是文獻 recall |
-
-這份量測直接改變了產品定位：Bridge Evidence 是條件式正向訊號；沒有找到 bridge 永遠不會被當成通用負向判定。完整 end-to-end reviewer-grounded Recall@5、MRR 與 reviewer prediction 仍未量測。完整限制見 [empirical status](docs/empirical-status.md)，資料授權邊界見 [data licenses](docs/DATA_LICENSES.md)。
-
-## 已完成
-
-- 符合 Agent Skills 格式的 `SKILL.md`、progressive references 與 Codex UI metadata。
-- OpenAlex、Semantic Scholar、arXiv、Crossref provider adapters。
-- DOI／arXiv／標題正規化、preprint 與正式版本去重。
-- 最早公開日解析與嚴格 cutoff 狀態。
-- 1–3 篇 evidence-bound Minimal Prior Set 求解。
-- OpenAlex／Semantic Scholar backward 聯集與 forward citation expansion、citation graph bridge discovery、逐 provider 端點覆蓋狀態、搜尋前觀察窗提示、具敏感度依據的高引文防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
-- 公開 PDF／HTML／文字的 Tier-2 全文取得、DNS 解析結果 pinning、實際 peer IP 驗證、下載大小上限、文字抽取、內容雜湊，以及 evidence-to-acquisition 驗證。
-- criticality leave-one-out 敏感度分析。
-- Markdown、JSON、HTML 匯出與 adversarial invariant validator。
-- 可稽核的三次 report assembly gate：`report-attempt` 會在驗證與雜湊前自行注入實際 Python、jsonschema、pypdf 版本，輸出 hash 一致的 machine-bound report；逐次保留雜湊與失敗，預算耗盡必須以 `PARTIAL + INCONCLUSIVE` 終止。
-- 具版本且由 assembly process 綁定的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
-- 保存 provider 計數、逐頁紀錄、飽和停止原因、corpus 與截斷狀態的 SearchRun，並由 validator 自動推導 Search Protocol Coverage。`BROAD` 只代表這套有界流程被廣泛執行，不代表已找回所有相關文獻。
-- JSON Schemas、golden fixture、測試與 benchmark annotation schema。
-
-核心流程不需要額外付費 LLM API；宿主 agent 負責 claim decomposition 與 evidence interpretation，scripts 只處理可重現的 deterministic 工作。
-
-Provider key 對基本使用並非必要。`S2_API_KEY` 可降低 Semantic Scholar 的節流；免費的 `OPENALEX_API_KEY` 可將 OpenAlex 每日額度從匿名試用額度提高到 1 美元。OpenAlex 已在 2026 年淘汰 polite-pool 制度，因此本專案不使用 `mailto`。OpenAlex 檢索會明確要求 `corpus=all`；只查 core 的 run 不能宣稱 `BROAD` coverage。
-
-MPS 搜尋界限固定為 `K ≤ 3`。「沒有找到」只代表沒有找到三篇以下、符合證據要求的集合，不代表更大的組合不存在。
-
-arXiv 翻頁以 API 原始 entries 數量推進，不會以 cutoff 過濾後的篇數計算 offset。搜尋計畫也會讓至少一個 query-family run 不套用 provider-side cutoff，作為 temporal-recall backstop，再由最早公開日 resolver 做最終 eligibility 判定。
-
-每個多篇 MPS 的端點 pair 都先執行零網路的 `graph-preflight`，再取得 `COMPLETE` graph expansion。Preflight 在搜尋前計算觀察窗；`BELOW_DIAGNOSTIC_THRESHOLD` 只表示零結果資訊量低，`MEETS_DIAGNOSTIC_THRESHOLD` 也只表示達到探索性的 548 天門檻，不代表領域已成熟，兩者都不會跳過檢索。預設 `expand-graph` 會把兩端所有可用的 OpenAlex／Semantic Scholar backward records 取聯集，並在兩端共有的 provider namespace 上聯集 forward candidates；每次 call 與端點覆蓋都保留 provider 歸屬。若兩端沒有共同 namespace，仍保留 backward 證據，但結果是 `PARTIAL`，不會直接失敗或假稱查完。Provider 會明確回報 traversal 是否耗盡與 continuation token；不完整時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap。歷史 graph retrieval 由本地 earliest-public-date resolver 作最終 cutoff 裁決，並保留 post-cutoff 資料作 landscape review。每次擴張記錄逐 provider `endpoint_reference_observations`、觀察窗數字與狀態、歷史／現況候選與 `negative_result_scope`。
-
-自訂高引用門檻若只有來源，只能標成 `DOCUMENTED_OVERRIDE`。`CALIBRATION_DECLARED` 還要有結構化 dataset、method 與 `preregistered=true`；這些欄位是 calibration provenance 的聲明，不代表系統已獨立驗證 calibration artifact 真實存在或足以支持該門檻。
-
-## 安裝
-
-從 GitHub Releases 下載 `scholarly-novelty-audit-v0.3.1.zip` 與對應的 `.sha256`，驗證後解壓；或直接 clone repository。只需複製實際 skill 資料夾：
+從 [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases) 下載目前的 `scholarly-novelty-audit-v*.zip` 與 `.sha256`，驗證後解壓；也可以直接 clone：
 
 ```bash
+git clone https://github.com/niansia/NoveltyAudit.git
 mkdir -p ~/.codex/skills
-cp -r ./scholarly-novelty-audit ~/.codex/skills/scholarly-novelty-audit
+cp -r NoveltyAudit/scholarly-novelty-audit ~/.codex/skills/scholarly-novelty-audit
 python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.txt
 ```
 
-Claude Code 可改放 `~/.claude/skills/scholarly-novelty-audit`；跨 agent 慣例可放 `~/.agents/skills/scholarly-novelty-audit`。實際 skill 資料夾必須叫 `scholarly-novelty-audit`。
-
-Tag workflow 會先通過 Ubuntu 與 macOS clean install，再重建並驗證 runtime ZIP。發布包包含完整 Apache-2.0 `LICENSE`；開發用 tests、benchmark、cache 與本地資料不會混入 release asset。
-
-安裝後可執行正式規格與回歸驗證：
-
-```bash
-python -m pytest scholarly-novelty-audit/tests -q
-skills-ref validate ./scholarly-novelty-audit
-```
-
-## 使用
+接著對 agent 說：
 
 ```text
 Use $scholarly-novelty-audit on this claim:
@@ -89,17 +43,140 @@ Cutoff: 2025-09-18.
 Bridge Evidence、strict temporal filtering、residual novelty 與 Markdown + JSON。
 ```
 
+> **未公開稿件提醒：** 搜尋字串與識別碼會傳給設定的學術 provider。沒有授權時，不要傳送機密稿件全文；請盡量縮減私密措辭，並先看 [privacy model](scholarly-novelty-audit/references/privacy-model.md)。
+
+Codex 可安裝在 `~/.codex/skills/`，Claude Code 可安裝在 `~/.claude/skills/`；其他 Agent Skills client 的探索路徑依宿主而定。資料夾名稱請保留為 `scholarly-novelty-audit`。
+
+## 真實輸出長什麼樣
+
+以下是 repo 內 [golden composition fixture](scholarly-novelty-audit/tests/fixtures/composition-report.json) 經正式 exporter 產生的英文節錄，是可重現的契約範例，**不是 benchmark 結果**。
+
+```text
+NoveltyAudit Report
+
+Novelty Risk: HIGH
+Search Protocol Coverage: BROAD
+Coverage scope: Protocol execution only; this is not demonstrated recall of all relevant literature.
+Evidence Confidence: STRONG
+Classification: STRONG_COMPOSITION_RISK
+
+Paper A and Paper B jointly cover both critical facets,
+and Paper C explicitly connects them.
+
+Input
+Claim: We introduce an architecture with adaptive memory and compression-aware selection.
+Cutoff: 2025-09-18 (strict)
+
+Frozen Claim Map
+F1 | mechanism   | adaptive memory              | critical
+F2 | interaction | compression-aware selection  | critical
+
+Top Killer Papers
+1. Adaptive Memory Systems — covers F1; does not cover F2
+2. Compression-aware Selection — covers F2; does not cover F1
+
+Minimal Prior Set
+MPS search bound: K ≤ 3.
+Adaptive Memory Systems + Compression-aware Selection covers: F1, F2
+
+Bridge Evidence
+TAXONOMY_BRIDGE: papers A, B; evidence E3
+
+Residual Novelty
+The exact interaction rule may survive if it differs from the bridge source.
+
+Defensible Claim Rewrite
+Prior work separately covers adaptive memory and compression-aware selection;
+we introduce a specific interaction rule between them.
+
+Search Gaps
+One workshop paper had no full text.
+```
+
+`BROAD` 只代表這套有界 protocol 被廣泛執行，不代表找回所有相關文獻。
+
+## 適合與不適合的情境
+
+| 適合 | 不適合 |
+|---|---|
+| 有明確 scholarly claim 與歷史 cutoff | 一般 literature review |
+| 投稿前 novelty stress test | Topic discovery 或快速相似度搜尋 |
+| Rebuttal、reviewer response、claim rewrite | 沒有邊界的「我的 idea 新不新」意見 |
+| Multi-paper composition attack | Patentability 或 freedom-to-operate 分析 |
+| Reviewer-defensible 日期與證據驗證 | 法律 prior-art 意見 |
+
+日期、全文、graph coverage 或搜尋義務不足時，正確輸出是 `INCONCLUSIVE`。
+
+## 為什麼不同
+
+| 常見流程 | NoveltyAudit |
+|---|---|
+| 排出最相似的單篇 paper | 求解 1–3 篇、具證據的 **Minimal Prior Set** |
+| 任何拼湊都算風險 | 強烈組合判定前要求 **Bridge Evidence** |
+| 只用 publication year 過濾 | 解析**最早可驗證公開日**並隔離不確定日期 |
+| 輸出一個分數 | 分開 **Novelty Risk／Search Protocol Coverage／Evidence Confidence** |
+| 沒結果就暗示安全 | 明列限制，必要時回傳 **INCONCLUSIVE** |
+
+## 運作方式
+
+<p align="center">
+  <img src="docs/assets/architecture.png" alt="NoveltyAudit 架構：claim freeze、多來源檢索、證據綁定、Minimal Prior Set 與 graph expansion、deterministic validation 與匯出" width="100%">
+</p>
+
+1. 先凍結 claim 並拆成 critical mechanisms、interactions 與 constraints。
+2. 以 literal、mechanism、problem/function、ancestor、composition bridge 五類 query 跨 provider 檢索。
+3. 去重、解析最早公開日、取得公開全文，將 evidence span 綁回 facet。
+4. 求解 `K ≤ 3` 的 Minimal Prior Set，並展開 citation graph 檢查歷史連結。
+5. 重新驗證 invariants、綁定 runtime provenance；不完整就封頂 `INCONCLUSIVE`，有效報告才可匯出 Markdown／JSON／HTML。
+
 ## 判定語意
 
-- `DIRECT_PRECEDENT`：單篇合格前作以全文證據覆蓋全部 critical facets。
+- `DIRECT_PRECEDENT`：單篇合格前作以證據覆蓋全部 critical facets。
 - `STRONG_COMPOSITION_RISK`：2–3 篇合格前作共同覆蓋，且有 textual bridge。
-- `PLAUSIBLE_COMPOSITION_RISK`：聯合覆蓋成立，但目前只有 graph bridge。
-- `FRAGMENTED_PRECEDENT`：零件個別已知，但沒有 meaningful historical bridge。
+- `PLAUSIBLE_COMPOSITION_RISK`：聯合覆蓋成立，但目前只有 graph-level bridge。
+- `FRAGMENTED_PRECEDENT`：完整執行必要 graph expansion 後，零件個別已知但沒有 meaningful historical bridge。
 - `RESIDUAL_NOVELTY`：仍有 critical mechanism 或 interaction 未被覆蓋。
-- `INCONCLUSIVE`：檢索、日期、全文或證據不足。
+- `INCONCLUSIVE`：檢索、日期、全文、graph expansion 或證據不足。
 
-完整技術說明請看英文 [README](README.md)，競品查核請看 [landscape review](docs/landscape.md)，發布與外部驗證狀態則列在 [user-facing release acceptance](docs/release-acceptance.md)。
+以上是有界稽核分類，不是原創性保證或法律結論。
 
-NoveltyAudit 僅執行學術文獻偵察，不提供 patentability、non-obviousness、freedom-to-operate 或任何其他法律意見。
+## 82 個 reviewer-annotated cases 的探索性量測
+
+以下不是 NoveltyAudit 的效能分數：
+
+| 量測 | 觀察結果 | 可以支持的解讀 |
+|---|---:|---|
+| 至少含兩篇 deterministically detected reviewer-named priors 的案例 | **23/82（28.05%）** | detected mention rate；不是 composition objection 盛行率 |
+| 有 cutoff 前 co-citation bridge 的完整多前作案例 | **4/18（22.22%）** | 少數訊號，且不確定性很寬（exact 95% interval：6.41%–47.64%） |
+| OpenAlex + Semantic Scholar fallback 後 backward references 非空的指名前作 | **56/83（67.47%）** | 實測 provider 覆蓋；不是文獻 recall |
+
+量測結果讓 Bridge Evidence 被定位成條件式正向訊號；沒有 bridge 永遠不會成為通用負向判定。End-to-end reviewer-grounded Recall@5、MRR 與 reviewer prediction 仍未量測。詳見 [empirical status](docs/empirical-status.md)。
+
+## Alpha 範圍與信任邊界
+
+Deterministic pipeline、schemas、validators、release packaging 與離線測試已實作；CLI 與 report schema 在 1.0 前仍可能演進。專案不會用合成資料假裝 reviewer-grounded 成效已成立。
+
+Provider key 對基本使用不是必要條件。`S2_API_KEY` 可降低 Semantic Scholar 節流；`OPENALEX_API_KEY` 可提高 OpenAlex 額度。OpenAlex 已淘汰 polite-pool，因此不使用 `mailto`。
+
+Release workflow 會在 Ubuntu、macOS clean install，驗證 Agent Skill、重建 allowlisted runtime ZIP、檢查 license 與 SHA-256。Runtime asset 不包含 tests、benchmark data、本地 run 或 cache。
+
+NoveltyAudit 僅執行學術文獻偵察，不提供 patentability、non-obviousness、freedom-to-operate 或其他法律意見。
+
+## 技術文件與測試
+
+- [Deterministic CLI 與 coverage derivation](scholarly-novelty-audit/references/tooling.md)
+- [Minimal Prior Set](scholarly-novelty-audit/references/minimal-prior-set.md)
+- [Bridge Evidence](scholarly-novelty-audit/references/bridge-evidence.md)
+- [Temporal cutoff](scholarly-novelty-audit/references/temporal-cutoff.md)
+- [Evidence rules](scholarly-novelty-audit/references/evidence-rules.md)
+- [Report schema](scholarly-novelty-audit/references/report-schema.md)
+- [Privacy model](scholarly-novelty-audit/references/privacy-model.md)
+
+```bash
+python -m pytest scholarly-novelty-audit/tests -q
+skills-ref validate ./scholarly-novelty-audit
+```
+
+下一個里程碑是 preregistered、具授權、end-to-end reviewer-grounded pilot。相關邊界見 [release acceptance](docs/release-acceptance.md)、[benchmark policy](scholarly-novelty-audit/benchmark/README.md) 與 [data licenses](docs/DATA_LICENSES.md)。
 
 如果 NoveltyAudit 找到一篇可能比 Reviewer #2 更早找到的 paper，歡迎替 repo 點 Star。
