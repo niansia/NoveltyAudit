@@ -1,0 +1,9 @@
+interface:
+  display_name: "NoveltyAudit"
+  short_description: "Composition-aware scholarly novelty audit"
+  icon_small: "./assets/icon.svg"
+  icon_large: "./assets/logo.svg"
+  brand_color: "#7C3AED"
+  default_prompt: "Use $novelty-audit to adversarially audit this research claim before its cutoff."
+policy:
+  allow_implicit_invocation: true

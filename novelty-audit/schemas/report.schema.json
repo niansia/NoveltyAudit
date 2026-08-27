@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noveltyaudit.dev/schemas/report.schema.json",
+  "title": "NoveltyAudit Report",
+  "type": "object",
+  "required": ["schema_version", "audit_id", "generated_at", "input", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "audit_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "input": {
+      "type": "object",
+      "required": ["claim", "normalized_claim", "cutoff", "strict_date"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1},
+        "normalized_claim": {"type": "string", "minLength": 1},
+        "field": {"type": "string"},
+        "cutoff": {"type": "string", "format": "date"},
+        "strict_date": {"type": "boolean"}
+      }
+    },
+    "claim_map": {"$ref": "claim.schema.json"},
+    "verdict": {
+      "type": "object",
+      "required": ["classification", "novelty_risk", "search_coverage", "evidence_confidence", "main_concern", "evidence_ids"],
+      "properties": {
+        "classification": {"enum": ["DIRECT_PRECEDENT", "STRONG_COMPOSITION_RISK", "PLAUSIBLE_COMPOSITION_RISK", "FRAGMENTED_PRECEDENT", "RESIDUAL_NOVELTY", "INCONCLUSIVE"]},
+        "novelty_risk": {"enum": ["HIGH", "MEDIUM", "LOW", "INCONCLUSIVE"]},
+        "search_coverage": {"enum": ["BROAD", "MODERATE", "NARROW"]},
+        "evidence_confidence": {"enum": ["STRONG", "MIXED", "WEAK"]},
+        "main_concern": {"type": "string"},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "papers": {"type": "array", "items": {"$ref": "paper.schema.json"}},
+    "evidence": {"type": "array", "items": {"$ref": "evidence.schema.json"}},
+    "top_killers": {"type": "array"},
+    "minimal_prior_sets": {"type": "array"},
+    "bridges": {"type": "array"},
+    "criticality_sensitivity": {"type": "array"},
+    "ancestor_terms": {"type": "array"},
+    "residual_novelty": {"type": "string"},
+    "defensible_rewrite": {"type": "string"},
+    "search": {
+      "type": "object",
+      "required": ["providers", "query_families", "query_runs", "failures", "gaps"],
+      "properties": {
+        "providers": {"type": "array"},
+        "query_families": {"type": "array"},
+        "query_runs": {"type": "array"},
+        "failures": {"type": "array"},
+        "gaps": {"type": "array"}
+      }
+    },
+    "excluded": {
+      "type": "object",
+      "required": ["post_cutoff", "date_uncertain", "other"],
+      "properties": {
+        "post_cutoff": {"type": "array"},
+        "date_uncertain": {"type": "array"},
+        "other": {"type": "array"}
+      }
+    },
+    "audit_log": {"type": "array"}
+  },
+  "additionalProperties": true
+}

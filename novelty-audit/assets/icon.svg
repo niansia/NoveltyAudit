@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="NoveltyAudit icon">
+  <rect width="128" height="128" rx="28" fill="#111827"/>
+  <circle cx="51" cy="49" r="26" fill="none" stroke="#A78BFA" stroke-width="10"/>
+  <path d="M70 69 101 100" stroke="#F9FAFB" stroke-width="12" stroke-linecap="round"/>
+  <path d="M35 49h32M51 33v32" stroke="#F9FAFB" stroke-width="6" stroke-linecap="round"/>
+</svg>
+

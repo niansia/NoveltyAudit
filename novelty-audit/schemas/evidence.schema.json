@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noveltyaudit.dev/schemas/evidence.schema.json",
+  "title": "NoveltyAudit Evidence Span",
+  "type": "object",
+  "required": ["id", "paper_id", "span", "location", "source", "retrieved_at"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "paper_id": {"type": "string", "minLength": 1},
+    "span": {"type": "string", "minLength": 1},
+    "location": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "minLength": 1},
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "supports": {"type": "array", "items": {"type": "string"}},
+    "evidence_kind": {"enum": ["METHOD", "RESULT", "ABSTRACT", "DATE", "CITATION_GRAPH", "BRIDGE_TEXT", "TERMINOLOGY", "OTHER"]}
+  },
+  "additionalProperties": true
+}
+

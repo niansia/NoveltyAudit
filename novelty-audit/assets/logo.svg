@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-label="NoveltyAudit">
+  <rect width="960" height="240" rx="36" fill="#111827"/>
+  <g transform="translate(50 44)">
+    <circle cx="74" cy="68" r="54" fill="none" stroke="#A78BFA" stroke-width="18"/>
+    <path d="M113 107 160 154" stroke="#F9FAFB" stroke-width="22" stroke-linecap="round"/>
+    <path d="M42 68h64M74 36v64" stroke="#F9FAFB" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <text x="250" y="112" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" fill="#F9FAFB">NoveltyAudit</text>
+  <text x="254" y="164" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#C4B5FD">Find it before Reviewer #2 does.</text>
+</svg>
+
