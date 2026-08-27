@@ -163,10 +163,10 @@ def command_bridge(args: argparse.Namespace) -> int:
     elif calibration_requested:
         if not calibration_dataset or not calibration_method or not calibration_preregistered:
             raise ValueError(
-                "CALIBRATED requires --calibration-dataset, --calibration-method, "
+                "CALIBRATION_DECLARED requires --calibration-dataset, --calibration-method, "
                 "and --calibration-preregistered"
             )
-        policy_status = "CALIBRATED"
+        policy_status = "CALIBRATION_DECLARED"
         policy_evidence = {
             "dataset": calibration_dataset,
             "method": calibration_method,
@@ -381,8 +381,8 @@ def parser() -> argparse.ArgumentParser:
     bridge.add_argument("--cutoff")
     bridge.add_argument("--high-citation-threshold", type=int, default=DEFAULT_HIGH_CITATION_THRESHOLD)
     bridge.add_argument("--bridge-policy-source", help="required documented source for a custom threshold")
-    bridge.add_argument("--calibration-dataset", help="dataset identifier required for a CALIBRATED policy")
-    bridge.add_argument("--calibration-method", help="calibration method required for a CALIBRATED policy")
+    bridge.add_argument("--calibration-dataset", help="dataset identifier required for a CALIBRATION_DECLARED policy")
+    bridge.add_argument("--calibration-method", help="calibration method required for a CALIBRATION_DECLARED policy")
     bridge.add_argument(
         "--calibration-preregistered", action="store_true",
         help="assert that the supplied calibration was preregistered",

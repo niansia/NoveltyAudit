@@ -198,7 +198,7 @@
           "type": "object",
           "required": ["status", "high_citation_threshold", "source", "evidence"],
           "properties": {
-            "status": {"enum": ["CALIBRATED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE", "UNCONFIGURED"]},
+            "status": {"enum": ["CALIBRATION_DECLARED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE", "UNCONFIGURED"]},
             "high_citation_threshold": {"type": ["integer", "null"], "minimum": 1},
             "source": {"type": "string", "minLength": 1},
             "evidence": {

@@ -7,6 +7,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/niansia/NoveltyAudit/releases/tag/v0.3.1"><img alt="Alpha v0.3.1" src="https://img.shields.io/badge/release-v0.3.1%20alpha-6D46D8"></a>
+  <a href="https://github.com/niansia/NoveltyAudit/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/niansia/NoveltyAudit/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <a href="https://github.com/agentskills/agentskills"><img alt="Agent Skills" src="https://img.shields.io/badge/Agent%20Skills-compatible-7C3AED"></a>
   <a href="README.zh-TW.md"><img alt="繁體中文" src="https://img.shields.io/badge/README-繁體中文-0F766E"></a>
@@ -14,9 +16,15 @@
 
 NoveltyAudit is an evidence-first Agent Skill for adversarial scholarly novelty checks. It asks a harder question than “Which paper is most similar?”:
 
-> What is the smallest historically connected set of prior papers that can collectively cover the critical parts of this claim?
+> What is the smallest set of prior papers that can collectively cover the critical parts of this claim—and is there historical evidence that they were meaningfully connected?
 
 It then shows what the set covers, what it does not cover, why the papers were historically combinable, whether they existed before the cutoff, and what novelty still survives.
+
+<p align="center">
+  <img src="docs/assets/architecture.png" alt="NoveltyAudit architecture: claim freeze, multi-provider retrieval, evidence binding, Minimal Prior Set and graph expansion, then deterministic validation and export" width="100%">
+</p>
+
+<p align="center"><sub>Editable source: <a href="docs/assets/noveltyaudit-architecture.pptx">PowerPoint architecture diagram</a></sub></p>
 
 ## Why it is different
 
@@ -117,7 +125,7 @@ python scholarly-novelty-audit/scripts/cli.py export \
   --input run/report.bound.json --format html --output run/report.html
 ```
 
-The bridge command defaults to a 500-citation operational guard. The 82-case exploratory sensitivity table was comparatively flat across thresholds 50–1,000 (8.47%–12.12% pair rates), so the bundled policy is labeled `SENSITIVITY_CHECKED`, not universally field-calibrated. A custom threshold with a source is only `DOCUMENTED_OVERRIDE`; `CALIBRATED` additionally requires structured dataset and method provenance plus `preregistered=true`. Those fields are a documented assertion, not independent proof that the calibration exists or supports the threshold. Missing endpoint citation counts still make co-citation `UNASSESSED`.
+The bridge command defaults to a 500-citation operational guard. The 82-case exploratory sensitivity table was comparatively flat across thresholds 50–1,000 (8.47%–12.12% pair rates), so the bundled policy is labeled `SENSITIVITY_CHECKED`, not universally field-calibrated. A custom threshold with a source is only `DOCUMENTED_OVERRIDE`; `CALIBRATION_DECLARED` additionally requires structured dataset and method provenance plus `preregistered=true`. Those fields are a documented assertion, not independent proof that the calibration exists or supports the threshold. Missing endpoint citation counts still make co-citation `UNASSESSED`.
 
 The host agent gets at most three structured-report attempts. Before validation and hashing, `report-attempt` replaces any host-supplied runtime claim with the Python, `jsonschema`, and `pypdf` versions resolved by that process, writes the same machine-bound report to `--output`, and records the binding in every attempt. The input draft is not overwritten. Reusing the same assembly state appends a sequential hash and validation history bound to the immutable `audit_id`, claim ID, claim-freeze hash, and cutoff; a state from another audit or an internally inconsistent earlier runtime record is rejected. `RETRY_REQUIRED` reports exact failures before exhaustion; only the bound output from a `COMPLETE` attempt may be exported. An invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit. Standalone `validate` intentionally checks historical runtime provenance for structure, not equality with the machine performing a later review.
 
@@ -168,7 +176,7 @@ Live smoke tests may encounter provider rate limits; those failures are expected
 
 The deterministic core is implemented. The next growth asset is a licensed set of end-to-end reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
 
-External validation is not complete, but bridge base rates are no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two deterministically detected priors in 23 cases (28.05%). Another 23 cases were `POTENTIAL_MISSED_MENTIONS`, so the detector likely undercounts explicit mentions; because extracted links have not yet been independently precision-audited, 28.05% is not asserted as a formal statistical lower bound or composition-objection prevalence. Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%; case-level exact 95% binomial interval 6.41%–47.64%), so this supports a minority signal in this sample, not a precise population rate. The 12/72 pair rate is descriptive only because pairs cluster within cases. OpenAlex alone exposed nonempty references for 25.30% of named priors; observed Semantic Scholar fallback raises the measured nonempty backward-coverage lower bound to 56/83 (67.47%). Bridge Evidence remains a conditional positive signal for longer-window, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
+External validation is not complete, but bridge base rates are no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two deterministically detected priors in 23 cases (28.05%). Another 23 cases were `POTENTIAL_MISSED_MENTIONS`, so the detector likely undercounts explicit mentions; because extracted links have not yet been independently precision-audited, 28.05% is not asserted as a formal statistical lower bound or composition-objection prevalence. Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%; case-level exact 95% binomial interval 6.41%–47.64%), so this supports a minority signal in this sample, not a precise population rate. The 12/72 pair rate is descriptive only because pairs cluster within cases. OpenAlex alone exposed nonempty references for 25.30% of named priors. Observed nonempty backward coverage with Semantic Scholar fallback was 56/83 (67.47%). Bridge Evidence remains a conditional positive signal for longer-window, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
 
 The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md). External data and derived-aggregate notices are separated in [data licenses](docs/DATA_LICENSES.md).
 

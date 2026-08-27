@@ -6,6 +6,12 @@
 
 NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性稽核 Agent Skill。它不只問「哪篇最像」，而是找出最少 1–3 篇既有工作能否共同覆蓋核心 claim，並要求歷史上的 Bridge Evidence 才能升格成強烈的組合式風險。
 
+<p align="center">
+  <img src="docs/assets/architecture.png" alt="NoveltyAudit 架構：claim freeze、多來源檢索、證據綁定、Minimal Prior Set 與 graph expansion、deterministic validation 與匯出" width="100%">
+</p>
+
+<p align="center"><sub>可編輯來源：<a href="docs/assets/noveltyaudit-architecture.pptx">PowerPoint 架構圖</a></sub></p>
+
 ## 四個核心差異
 
 - **Minimal Prior Set：** 找最小聯合覆蓋集合，而非單篇相似度排名。
@@ -39,7 +45,7 @@ arXiv 翻頁以 API 原始 entries 數量推進，不會以 cutoff 過濾後的�
 
 每個多篇 MPS 的端點 pair 都先執行零網路的 `graph-preflight`，再取得 `COMPLETE` graph expansion。Preflight 在搜尋前計算觀察窗；`BELOW_DIAGNOSTIC_THRESHOLD` 只表示零結果資訊量低，`MEETS_DIAGNOSTIC_THRESHOLD` 也只表示達到探索性的 548 天門檻，不代表領域已成熟，兩者都不會跳過檢索。預設 `expand-graph` 會把兩端所有可用的 OpenAlex／Semantic Scholar backward records 取聯集，並在兩端共有的 provider namespace 上聯集 forward candidates；每次 call 與端點覆蓋都保留 provider 歸屬。若兩端沒有共同 namespace，仍保留 backward 證據，但結果是 `PARTIAL`，不會直接失敗或假稱查完。Provider 會明確回報 traversal 是否耗盡與 continuation token；不完整時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap。歷史 graph retrieval 由本地 earliest-public-date resolver 作最終 cutoff 裁決，並保留 post-cutoff 資料作 landscape review。每次擴張記錄逐 provider `endpoint_reference_observations`、觀察窗數字與狀態、歷史／現況候選與 `negative_result_scope`。
 
-自訂高引用門檻若只有來源，只能標成 `DOCUMENTED_OVERRIDE`。`CALIBRATED` 還要有結構化 dataset、method 與 `preregistered=true`；這些欄位是 calibration provenance 的聲明，不代表系統已獨立驗證 calibration artifact 真實存在或足以支持該門檻。
+自訂高引用門檻若只有來源，只能標成 `DOCUMENTED_OVERRIDE`。`CALIBRATION_DECLARED` 還要有結構化 dataset、method 與 `preregistered=true`；這些欄位是 calibration provenance 的聲明，不代表系統已獨立驗證 calibration artifact 真實存在或足以支持該門檻。
 
 ## 目前的真實量測
 

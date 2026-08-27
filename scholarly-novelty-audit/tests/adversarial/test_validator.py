@@ -628,19 +628,26 @@ def test_sensitivity_checked_policy_cannot_swap_in_an_undocumented_threshold(val
     assert any("documented v0.3.1 operational guard" in error for error in errors)
 
 
-def test_calibrated_policy_cannot_be_claimed_with_a_source_string_alone(valid_report):
+def test_declared_calibration_policy_requires_structured_provenance(valid_report):
     report = deepcopy(valid_report)
     report["search"]["bridge_policy"] = {
-        "status": "CALIBRATED",
+        "status": "CALIBRATION_DECLARED",
         "high_citation_threshold": 999,
         "source": "trust me",
         "evidence": {"dataset": None, "method": None, "preregistered": None},
     }
     errors = validate_report(report)
-    assert any("CALIBRATED bridge policy requires" in error for error in errors)
+    assert any("CALIBRATION_DECLARED bridge policy requires" in error for error in errors)
 
 
-def test_documented_override_and_evidence_backed_calibration_remain_distinct(valid_report):
+def test_legacy_calibrated_label_is_rejected(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["bridge_policy"]["status"] = "CALIBRATED"
+    errors = validate_report(report)
+    assert any("CALIBRATED" in error for error in errors)
+
+
+def test_documented_override_and_declared_calibration_remain_distinct(valid_report):
     report = deepcopy(valid_report)
     report["search"]["bridge_policy"] = {
         "status": "DOCUMENTED_OVERRIDE",
@@ -651,7 +658,7 @@ def test_documented_override_and_evidence_backed_calibration_remain_distinct(val
     assert validate_report(report) == []
 
     report["search"]["bridge_policy"] = {
-        "status": "CALIBRATED",
+        "status": "CALIBRATION_DECLARED",
         "high_citation_threshold": 999,
         "source": "Preregistered protocol DOI:10.0000/example",
         "evidence": {

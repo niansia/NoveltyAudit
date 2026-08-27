@@ -55,7 +55,7 @@ The complete aggregate is machine-readable in [`bridge-base-rate-summary.json`](
 | OpenAlex-resolved priors | 77 / 83 (92.77%) |
 | Priors with nonempty OpenAlex references | 21 / 83 (25.30%) |
 | Confirmed OpenAlex-empty / Semantic Scholar-nonempty gaps | 35 / 83 (42.17%) |
-| Observed nonempty backward coverage with Semantic Scholar fallback | 56 / 83 (67.47% lower bound) |
+| Observed nonempty backward coverage with Semantic Scholar fallback | 56 / 83 (67.47%) |
 | Complete multi-prior cases | 18 |
 | Complete endpoint pairs | 72 / 74 |
 | Complete cases with at least one pre-cutoff bridge | 4 / 18 (22.22%; exact 95% interval 6.41%–47.64%) |

@@ -57,7 +57,7 @@ def test_custom_bridge_threshold_requires_a_policy_source(tmp_path):
     assert payload["evidence"] == {"dataset": None, "method": None, "preregistered": None}
 
 
-def test_calibrated_bridge_threshold_requires_machine_readable_evidence(tmp_path):
+def test_declared_calibration_threshold_requires_machine_readable_provenance(tmp_path):
     source = tmp_path / "papers.json"
     output = tmp_path / "bridges.json"
     source.write_text(json.dumps([
@@ -73,7 +73,7 @@ def test_calibrated_bridge_threshold_requires_machine_readable_evidence(tmp_path
         *base, "--calibration-dataset", "field-set-v1", "--output", str(output),
     ], capture_output=True, text=True)
     assert incomplete.returncode == 50
-    assert "CALIBRATED requires" in incomplete.stderr
+    assert "CALIBRATION_DECLARED requires" in incomplete.stderr
 
     result = subprocess.run([
         *base,
@@ -84,7 +84,7 @@ def test_calibrated_bridge_threshold_requires_machine_readable_evidence(tmp_path
     ], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     payload = json.loads(output.read_text(encoding="utf-8"))["bridge_policy"]
-    assert payload["status"] == "CALIBRATED"
+    assert payload["status"] == "CALIBRATION_DECLARED"
     assert payload["evidence"] == {
         "dataset": "field-set-v1",
         "method": "Preregistered threshold selection",

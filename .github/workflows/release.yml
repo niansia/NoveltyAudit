@@ -55,6 +55,6 @@ jobs:
           "dist/scholarly-novelty-audit-${{ github.ref_name }}.zip.sha256"
           --verify-tag
           --generate-notes
-          --title "NoveltyAudit ${{ github.ref_name }}"
+          --title "NoveltyAudit ${{ github.ref_name }} — Alpha"
         env:
           GH_TOKEN: ${{ github.token }}

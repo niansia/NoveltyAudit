@@ -8,6 +8,8 @@ authors:
   - name: "NoveltyAudit contributors"
 license: Apache-2.0
 abstract: "An evidence-first Agent Skill that tests scholarly novelty claims with strict temporal cutoffs, Minimal Prior Sets, and historical Bridge Evidence."
+repository-code: "https://github.com/niansia/NoveltyAudit"
+url: "https://github.com/niansia/NoveltyAudit"
 keywords:
   - scholarly novelty
   - agent skills

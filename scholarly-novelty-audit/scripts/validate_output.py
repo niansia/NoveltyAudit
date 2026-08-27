@@ -324,7 +324,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     bridge_policy_status = bridge_policy.get("status")
     high_citation_threshold = bridge_policy.get("high_citation_threshold")
     policy_evidence = bridge_policy.get("evidence") or {}
-    if bridge_policy_status in {"CALIBRATED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE"} and not isinstance(high_citation_threshold, int):
+    if bridge_policy_status in {"CALIBRATION_DECLARED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE"} and not isinstance(high_citation_threshold, int):
         errors.append("configured bridge policy requires an integer high_citation_threshold")
     if bridge_policy_status == "UNCONFIGURED" and high_citation_threshold is not None:
         errors.append("UNCONFIGURED bridge policy cannot claim a high_citation_threshold")
@@ -334,14 +334,14 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         or policy_evidence != DEFAULT_BRIDGE_POLICY_EVIDENCE
     ):
         errors.append("SENSITIVITY_CHECKED bridge policy must use the documented v0.3.1 operational guard")
-    if bridge_policy_status == "CALIBRATED" and (
+    if bridge_policy_status == "CALIBRATION_DECLARED" and (
         not isinstance(policy_evidence.get("dataset"), str)
         or not policy_evidence.get("dataset", "").strip()
         or not isinstance(policy_evidence.get("method"), str)
         or not policy_evidence.get("method", "").strip()
         or policy_evidence.get("preregistered") is not True
     ):
-        errors.append("CALIBRATED bridge policy requires a dataset, method, and preregistered=true")
+        errors.append("CALIBRATION_DECLARED bridge policy requires a dataset, method, and preregistered=true")
     manifest = report.get("run_manifest") or {}
     for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints", "runtime_environment"):
         if not manifest.get(field):
