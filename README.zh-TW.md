@@ -10,14 +10,24 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
   <img src="docs/assets/architecture.png" alt="NoveltyAudit 架構：claim freeze、多來源檢索、證據綁定、Minimal Prior Set 與 graph expansion、deterministic validation 與匯出" width="100%">
 </p>
 
-<p align="center"><sub>可編輯來源：<a href="docs/assets/noveltyaudit-architecture.pptx">PowerPoint 架構圖</a></sub></p>
-
 ## 四個核心差異
 
 - **Minimal Prior Set：** 找最小聯合覆蓋集合，而非單篇相似度排名。
 - **Bridge Evidence：** 可追溯的引用、延伸、taxonomy、benchmark 或組合證據能強化組合風險；「沒找到」只有在擴張完整、provider 覆蓋與觀察窗都明示時才可解讀。
 - **Strict Temporal Cutoff：** 依最早可驗證公開日守門；只有年份的資料不得偷塞 1 月 1 日。
 - **三軸分離：** Novelty Risk、Search Protocol Coverage、Evidence Confidence 永不混成一個假精確分數。
+
+## 82 個 reviewer-annotated cases 的探索性量測
+
+以下是 82 個具授權 reviewer annotation 案例的探索性量測，不是 NoveltyAudit 的 benchmark 分數：
+
+| 量測 | 觀察結果 | 可以支持的解讀 |
+|---|---:|---|
+| 至少含兩篇 deterministically detected reviewer-named priors 的案例 | **23/82（28.05%）** | 此樣本中的 detected mention rate；不是 composition objection 盛行率 |
+| 有 cutoff 前 co-citation bridge 的完整多前作案例 | **4/18（22.22%）** | 此樣本中的少數訊號，且不確定性很寬（exact 95% interval：6.41%–47.64%） |
+| OpenAlex 加 Semantic Scholar fallback 後，backward references 非空的指名前作 | **56/83（67.47%）** | 實測 provider 覆蓋，不是文獻 recall |
+
+這份量測直接改變了產品定位：Bridge Evidence 是條件式正向訊號；沒有找到 bridge 永遠不會被當成通用負向判定。完整 end-to-end reviewer-grounded Recall@5、MRR 與 reviewer prediction 仍未量測。完整限制見 [empirical status](docs/empirical-status.md)，資料授權邊界見 [data licenses](docs/DATA_LICENSES.md)。
 
 ## 已完成
 
@@ -46,10 +56,6 @@ arXiv 翻頁以 API 原始 entries 數量推進，不會以 cutoff 過濾後的�
 每個多篇 MPS 的端點 pair 都先執行零網路的 `graph-preflight`，再取得 `COMPLETE` graph expansion。Preflight 在搜尋前計算觀察窗；`BELOW_DIAGNOSTIC_THRESHOLD` 只表示零結果資訊量低，`MEETS_DIAGNOSTIC_THRESHOLD` 也只表示達到探索性的 548 天門檻，不代表領域已成熟，兩者都不會跳過檢索。預設 `expand-graph` 會把兩端所有可用的 OpenAlex／Semantic Scholar backward records 取聯集，並在兩端共有的 provider namespace 上聯集 forward candidates；每次 call 與端點覆蓋都保留 provider 歸屬。若兩端沒有共同 namespace，仍保留 backward 證據，但結果是 `PARTIAL`，不會直接失敗或假稱查完。Provider 會明確回報 traversal 是否耗盡與 continuation token；不完整時只能回報 `INCONCLUSIVE` 並留下 `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>` gap。歷史 graph retrieval 由本地 earliest-public-date resolver 作最終 cutoff 裁決，並保留 post-cutoff 資料作 landscape review。每次擴張記錄逐 provider `endpoint_reference_observations`、觀察窗數字與狀態、歷史／現況候選與 `negative_result_scope`。
 
 自訂高引用門檻若只有來源，只能標成 `DOCUMENTED_OVERRIDE`。`CALIBRATION_DECLARED` 還要有結構化 dataset、method 與 `preregistered=true`；這些欄位是 calibration provenance 的聲明，不代表系統已獨立驗證 calibration artifact 真實存在或足以支持該門檻。
-
-## 目前的真實量測
-
-TUdatalib 的 82 個有標註案例已完成無 LLM 批次量測：37 案能確定連到 reviewer 指名先行工作，23 案至少有兩篇 deterministically detected priors（detected rate 28.05%，不是 composition objection 盛行率）。另有 23 案可能漏抽，因此 detector 很可能低估明示提及；但 extracted links 尚未經獨立 precision audit，不能假設 false positive 為零，也不把 28.05% 宣稱為正式統計下限。在 18 個完整多前作案例中，4 案有 cutoff 前 co-citation bridge（22.22%；case-level exact 95% interval 6.41%–47.64%），只能支持此樣本中屬少數情形，不能宣稱精確母體比例；12/72 的 pair rate 只作描述，因 pairs 群聚於案例內。OpenAlex 非空 backward 覆蓋為 21/83；加入實測 Semantic Scholar fallback 後，提高為 56/83（67.47% observed coverage）。500 citations 是 50–1000 敏感度區間內的 operational guard，不是通用 field calibration。因此 Bridge Evidence 是較長觀察窗且 provider 覆蓋足夠領域的條件式正向訊號，不是通用負向判定器。完整限制見 [empirical status](docs/empirical-status.md)，資料授權邊界見 [data licenses](docs/DATA_LICENSES.md)。
 
 ## 安裝
 

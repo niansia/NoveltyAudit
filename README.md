@@ -24,8 +24,6 @@ It then shows what the set covers, what it does not cover, why the papers were h
   <img src="docs/assets/architecture.png" alt="NoveltyAudit architecture: claim freeze, multi-provider retrieval, evidence binding, Minimal Prior Set and graph expansion, then deterministic validation and export" width="100%">
 </p>
 
-<p align="center"><sub>Editable source: <a href="docs/assets/noveltyaudit-architecture.pptx">PowerPoint architecture diagram</a></sub></p>
-
 ## Why it is different
 
 | Common novelty workflow | NoveltyAudit |
@@ -37,6 +35,18 @@ It then shows what the set covers, what it does not cover, why the papers were h
 | “No results” becomes “probably novel” | Reports remaining gaps and allows **INCONCLUSIVE** |
 
 The adjacent ecosystem is real and active. OpenNovelty provides a strong evidence-grounded single-paper comparison pipeline; paper-search-pro provides broad multi-source discovery; idea-novelty-auditor provides reviewer-style positioning; and novelty-assessment provides iterative harsh-critic search. NoveltyAudit deliberately focuses on composition-aware, time-safe, evidence-bound prosecution. See the dated [landscape review](docs/landscape.md).
+
+## Exploratory evidence from 82 reviewer-annotated cases
+
+These are exploratory measurements from 82 licensed reviewer-annotated cases, not benchmark scores for NoveltyAudit:
+
+| Measurement | Observed result | What it supports |
+|---|---:|---|
+| Cases with at least two deterministically detected reviewer-named priors | **23/82 (28.05%)** | A detected mention rate in this sample, not composition-objection prevalence |
+| Complete multi-prior cases with a pre-cutoff co-citation bridge | **4/18 (22.22%)** | A minority signal with wide uncertainty (exact 95% interval: 6.41%–47.64%) |
+| Named priors with nonempty backward references after OpenAlex + Semantic Scholar fallback | **56/83 (67.47%)** | Observed provider coverage, not literature recall |
+
+The study changed the product: Bridge Evidence is treated as a conditional positive signal, while an absent bridge never becomes a universal negative test. End-to-end reviewer-grounded Recall@5, MRR, and reviewer-prediction performance remain unmeasured. See the full [empirical status and limitations](docs/empirical-status.md).
 
 ## What ships today
 
@@ -175,8 +185,6 @@ Live smoke tests may encounter provider rate limits; those failures are expected
 ## Roadmap that needs public data, not synthetic theater
 
 The deterministic core is implemented. The next growth asset is a licensed set of end-to-end reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
-
-External validation is not complete, but bridge base rates are no longer unmeasured. The [82-case empirical study](docs/empirical-status.md) found explicit named priors in 37 cases and at least two deterministically detected priors in 23 cases (28.05%). Another 23 cases were `POTENTIAL_MISSED_MENTIONS`, so the detector likely undercounts explicit mentions; because extracted links have not yet been independently precision-audited, 28.05% is not asserted as a formal statistical lower bound or composition-objection prevalence. Among 18 complete multi-prior cases, 4 had a pre-cutoff co-citation bridge (22.22%; case-level exact 95% binomial interval 6.41%–47.64%), so this supports a minority signal in this sample, not a precise population rate. The 12/72 pair rate is descriptive only because pairs cluster within cases. OpenAlex alone exposed nonempty references for 25.30% of named priors. Observed nonempty backward coverage with Semantic Scholar fallback was 56/83 (67.47%). Bridge Evidence remains a conditional positive signal for longer-window, adequately covered fields—not a universal negative test. Full end-to-end reports, Recall@5, MRR, and reviewer-prediction validation remain unmeasured.
 
 The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md). External data and derived-aggregate notices are separated in [data licenses](docs/DATA_LICENSES.md).
 
