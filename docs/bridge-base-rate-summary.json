@@ -76,12 +76,7 @@
       "status": "SENSITIVITY_CHECKED"
     },
     "pair_bridge_base_rate": 0.1667,
-    "pair_bridge_base_rate_exact_95pct_interval": {
-      "confidence": 0.95,
-      "lower": 0.0892,
-      "method": "CLOPPER_PEARSON_EXACT",
-      "upper": 0.273
-    },
+    "pair_bridge_base_rate_inference": "DESCRIPTIVE_CLUSTERED_WITHIN_CASE",
     "pairs_with_pre_cutoff_bridge": 12
   },
   "case_coverage": {
@@ -89,7 +84,7 @@
     "annotated_cases": 82,
     "cases_with_detected_named_priors": 37,
     "cases_with_two_or_more_named_priors": 23,
-    "multi_prior_mention_prevalence_lower_bound": 0.2805,
+    "detected_multi_prior_mention_rate": 0.2805,
     "extraction_status_counts": {
       "EXTRACTED": 37,
       "NO_EXPLICIT_WORK_DETECTED": 22,
@@ -97,8 +92,9 @@
     }
   },
   "limitations": [
-    "The multi-prior mention rate is a conservative lower bound on explicit reviewer mentions, not measured prevalence of compositional novelty objections.",
-    "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so even the multi-prior mention lower bound can be materially low.",
+    "The detected multi-prior mention rate is a deterministic extraction result, not a formal statistical lower bound or measured prevalence of compositional novelty objections.",
+    "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so the detector likely undercounts explicit mentions; extracted links have not yet been independently precision-audited, so false positives cannot be assumed to be zero.",
+    "Pair-level bridge rates are descriptive; no independent-binomial interval is reported because pairs are clustered within cases.",
     "The 4/18 case bridge result has a wide exact binomial interval; it supports a minority signal in this sample, not a precise population prevalence.",
     "OpenAlex reference coverage is a provider observation, not a claim that a paper lacks a bibliography.",
     "Bridge dates use OpenAlex work publication_date; unresolved version history can undercount historical bridges.",
@@ -127,7 +123,7 @@
     "openalex_resolution_rate": 0.9277,
     "openalex_resolved": 77
   },
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "snapshot_date": "2026-08-27",
   "source": {
     "archive_md5": "67d9e82abe79ed69ea5b5a3e4537ca3b",

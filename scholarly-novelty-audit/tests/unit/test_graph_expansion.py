@@ -215,7 +215,7 @@ def test_preflight_warns_about_short_window_without_calling_a_provider():
         "A", "B", "2025-01-01",
     )
     assert result["observation_window_days"] == 92
-    assert result["observation_window_status"] == "SHORT"
+    assert result["observation_window_status"] == "BELOW_DIAGNOSTIC_THRESHOLD"
     assert result["observation_window_threshold_days"] == 548
     assert "low-information" in result["interpretation"]
 
@@ -232,7 +232,7 @@ def test_graph_preflight_cli_writes_machine_readable_diagnostic(tmp_path):
         cutoff="2025-01-01", output=str(output),
     ))
     assert code == cli.EXIT_COMPLETE
-    assert json.loads(output.read_text(encoding="utf-8"))["observation_window_status"] == "SHORT"
+    assert json.loads(output.read_text(encoding="utf-8"))["observation_window_status"] == "BELOW_DIAGNOSTIC_THRESHOLD"
 
 
 def test_multi_provider_backward_union_recovers_provider_coverage_gap():

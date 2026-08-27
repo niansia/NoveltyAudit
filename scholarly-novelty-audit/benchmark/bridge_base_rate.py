@@ -643,7 +643,7 @@ def target_date(
     return earliest, sorted(source for value, source in dates if value == earliest)
 
 
-def maturity_bin(days: int | None) -> str:
+def observation_window_bin(days: int | None) -> str:
     if days is None:
         return "UNKNOWN"
     if days < 0:
@@ -752,7 +752,7 @@ def summarize(
     ref_counts = Counter(prior["openalex_reference_coverage_status"] for prior in all_priors)
     extraction_counts = Counter(case["extraction_status"] for case in cases)
     zero_counts = Counter(pair["negative_interpretation"] for pair in all_pairs)
-    maturity_counts = Counter(maturity_bin(value) for value in dated_pairs)
+    window_counts = Counter(observation_window_bin(value) for value in dated_pairs)
 
     def ratio(numerator: int, denominator: int) -> float | None:
         return round(numerator / denominator, 4) if denominator else None
@@ -777,7 +777,7 @@ def summarize(
         if item["pair_bridge_base_rate"] is not None
     ]
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "snapshot_date": snapshot_date or datetime.now(timezone.utc).date().isoformat(),
         "source": {"dataset_id": DATASET_ID, "license": DATASET_LICENSE,
                    "archive_md5": archive_md5},
@@ -795,7 +795,7 @@ def summarize(
             "extraction_status_counts": dict(sorted(extraction_counts.items())),
             "cases_with_detected_named_priors": sum(case["named_prior_count"] > 0 for case in cases),
             "cases_with_two_or_more_named_priors": len(multi_cases),
-            "multi_prior_mention_prevalence_lower_bound": ratio(len(multi_cases), len(cases)),
+            "detected_multi_prior_mention_rate": ratio(len(multi_cases), len(cases)),
         },
         "prior_resolution": {
             "named_priors": len(all_priors),
@@ -814,7 +814,7 @@ def summarize(
             "median_prior_age_at_cutoff_days": median(dated_priors) if dated_priors else None,
             "dated_complete_pairs": len(dated_pairs),
             "median_pair_opportunity_days": median(dated_pairs) if dated_pairs else None,
-            "pair_opportunity_bins": dict(sorted(maturity_counts.items())),
+            "pair_opportunity_bins": dict(sorted(window_counts.items())),
             "pairs_under_18_months": sum(0 <= value < 548 for value in dated_pairs),
             "pairs_under_18_months_rate": ratio(sum(0 <= value < 548 for value in dated_pairs), len(dated_pairs)),
         },
@@ -823,9 +823,7 @@ def summarize(
             "complete_pairs": len(complete_pairs),
             "pairs_with_pre_cutoff_bridge": len(bridge_pairs),
             "pair_bridge_base_rate": ratio(len(bridge_pairs), len(complete_pairs)),
-            "pair_bridge_base_rate_exact_95pct_interval": clopper_pearson_interval(
-                len(bridge_pairs), len(complete_pairs)
-            ),
+            "pair_bridge_base_rate_inference": "DESCRIPTIVE_CLUSTERED_WITHIN_CASE",
             "complete_multi_prior_cases": len(complete_multi_cases),
             "cases_with_pre_cutoff_bridge": len(bridge_cases),
             "case_bridge_base_rate": case_rate,
@@ -844,8 +842,9 @@ def summarize(
             },
         },
         "limitations": [
-            "The multi-prior mention rate is a conservative lower bound on explicit reviewer mentions, not measured prevalence of compositional novelty objections.",
-            "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so even the multi-prior mention lower bound can be materially low.",
+            "The detected multi-prior mention rate is a deterministic extraction result, not a formal statistical lower bound or measured prevalence of compositional novelty objections.",
+            "Twenty-three cases were marked POTENTIAL_MISSED_MENTIONS, so the detector likely undercounts explicit mentions; extracted links have not yet been independently precision-audited, so false positives cannot be assumed to be zero.",
+            "Pair-level bridge rates are descriptive; no independent-binomial interval is reported because pairs are clustered within cases.",
             "The 4/18 case bridge result has a wide exact binomial interval; it supports a minority signal in this sample, not a precise population prevalence.",
             "OpenAlex reference coverage is a provider observation, not a claim that a paper lacks a bibliography.",
             "Bridge dates use OpenAlex work publication_date; unresolved version history can undercount historical bridges.",

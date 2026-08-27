@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 - 2026-08-27 — Initial public release
+## 0.3.1 - 2026-08-28 — Initial public release
 
 - Evidence-first scholarly novelty audits with frozen claim facets, supplied-bibliography states, strict historical cutoffs, and separate Novelty Risk, Search Protocol Coverage, and Evidence Confidence axes.
 - Evidence-bound Minimal Prior Sets with the explicit `K ≤ 3` search bound, leave-one-out criticality sensitivity, residual novelty, and defensible claim rewrites.
@@ -12,4 +12,5 @@
 - Deterministic report invariants, stateful three-attempt assembly gating, Markdown/JSON/HTML export, snapshot diffing, and explicit partial or inconclusive terminal states.
 - Agent Skills-compatible metadata, bilingual documentation, adversarial offline tests, clean Linux/macOS install CI, secret scanning, and a byte-for-byte deterministic runtime ZIP.
 - Release hardening adds the complete Apache-2.0 license to the runtime ZIP, tag-gated Ubuntu/macOS clean installation, DNS-pinned and peer-verified full-text connections, audit-identity-bound report retries, and provider-declared graph exhaustion.
-- Final RC hardening unions OpenAlex and Semantic Scholar graph neighborhoods, adds a zero-network observation-window preflight, adopts a documented sensitivity-checked 500-citation operational guard, discloses exact small-sample intervals, corrects multi-prior mention semantics, separates data-license notices, and fixes cross-platform checksum-sidecar line endings.
+- Final RC hardening unions OpenAlex and Semantic Scholar graph neighborhoods, adds a zero-network observation-window preflight without claiming field maturity, adopts a documented sensitivity-checked 500-citation operational guard, distinguishes documented overrides from machine-evidenced calibration, and records Python plus evidence-processing dependency versions.
+- Empirical reporting now names 23/82 as a deterministically detected multi-prior mention rate rather than a formal lower bound, retains the exact interval only for the case-level 4/18 estimate, labels the clustered 12/72 pair rate descriptive, separates data-license notices, and fixes cross-platform checksum-sidecar line endings.

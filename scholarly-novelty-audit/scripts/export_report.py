@@ -59,6 +59,8 @@ def _list(items: list[Any], empty: str = "None recorded") -> str:
 def to_markdown(report: dict[str, Any]) -> str:
     verdict = report["verdict"]
     claim_map = report["claim_map"]
+    runtime = (report.get("run_manifest") or {}).get("runtime_environment") or {}
+    dependencies = runtime.get("dependencies") or {}
     papers = {str(paper["id"]): paper for paper in report.get("papers") or []}
     lines = [
         "# NoveltyAudit Report",
@@ -143,6 +145,9 @@ def to_markdown(report: dict[str, Any]) -> str:
         f"- Audit ID: {_md_inline(report.get('audit_id', 'not recorded'))}",
         f"- Generated at: {_md_inline(report.get('generated_at', 'not recorded'))}",
         f"- Schema: {_md_inline(report.get('schema_version'))}",
+        f"- Python: {_md_inline(runtime.get('python_version', 'not recorded'))}",
+        f"- jsonschema: {_md_inline(dependencies.get('jsonschema', 'not recorded'))}",
+        f"- pypdf: {_md_inline(dependencies.get('pypdf', 'not recorded'))}",
     ]
     return "\n".join(lines).rstrip() + "\n"
 
@@ -155,6 +160,8 @@ def to_html(report: dict[str, Any]) -> str:
         return "".join(f"<span class=\"chip\">{e(value)}</span>" for value in values) or f"<span class=\"muted\">{e(empty)}</span>"
 
     verdict = report["verdict"]
+    runtime = (report.get("run_manifest") or {}).get("runtime_environment") or {}
+    dependencies = runtime.get("dependencies") or {}
     papers = {str(paper["id"]): paper for paper in report.get("papers") or []}
     facets = "".join(
         f"<tr><td>{e(facet.get('id'))}</td><td>{e(facet.get('type'))}</td><td>{e(facet.get('text'))}</td><td>{'yes' if facet.get('critical') or facet.get('structural_critical') is True else 'no'}</td></tr>"
@@ -215,7 +222,7 @@ def to_html(report: dict[str, Any]) -> str:
   <section class=\"split\"><div><h2>Residual Novelty</h2><p>{e(report.get('residual_novelty') or 'Not established.')}</p></div><div class=\"rewrite\"><h2>Defensible Claim Rewrite</h2><p>{e(_rewrite_text(report) or 'No rewrite recorded.')}</p></div></section>
   <section class=\"split\"><div><h2>Search Gaps</h2><ul>{gaps}</ul></div><div><h2>Provider Failures</h2><ul>{failures}</ul></div></section>
   <section><h2>Exclusions</h2><div class=\"card keyvals\"><div><span>Post-cutoff</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('post_cutoff') or []) or 'none')}</div><div><span>Date-uncertain</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('date_uncertain') or []) or 'none')}</div></div></section>
-  <footer>Audit {e(report.get('audit_id') or 'not recorded')} · generated {e(report.get('generated_at') or 'not recorded')} · schema {e(report.get('schema_version'))}</footer>
+  <footer>Audit {e(report.get('audit_id') or 'not recorded')} · generated {e(report.get('generated_at') or 'not recorded')} · schema {e(report.get('schema_version'))} · Python {e(runtime.get('python_version') or 'not recorded')} · jsonschema {e(dependencies.get('jsonschema') or 'not recorded')} · pypdf {e(dependencies.get('pypdf') or 'not recorded')}</footer>
 </main>"""
     return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>NoveltyAudit Report</title><style>:root{{--ink:#111827;--muted:#6b7280;--violet:#6d28d9;--soft:#f5f3ff;--line:#e5e7eb}}*{{box-sizing:border-box}}body{{margin:0;background:#fafafa;color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}}.hero{{padding:64px max(24px,calc((100vw - 1080px)/2));background:linear-gradient(135deg,#111827,#3b0764);color:white}}.eyebrow{{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#c4b5fd;font-weight:700}}h1{{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1;margin:.45rem 0 1rem}}h2{{font-size:1.45rem;margin:0 0 1rem}}h3{{font-size:1.2rem;margin:.3rem 0}}h4{{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .4rem;color:var(--muted)}}.claim{{max-width:780px;font-size:1.18rem;color:#e5e7eb}}.axes{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:32px 0 18px}}.axes div{{background:#ffffff12;border:1px solid #ffffff24;border-radius:14px;padding:15px}}.axes span,.keyvals span{{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#c4b5fd}}.axes strong{{display:block;font-size:1.3rem;margin-top:4px}}.classification{{display:inline-block;background:#a78bfa;color:#1f1147;border-radius:999px;padding:7px 13px;font-weight:800;font-size:.8rem}}.concern{{max-width:820px;margin:18px 0 0;padding-left:16px;border-left:3px solid #a78bfa}}main{{max-width:1080px;margin:auto;padding:48px 24px}}section{{margin-bottom:48px}}.card,.table-wrap,.rewrite{{background:white;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 8px 30px #11182708}}.keyvals,.split,.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}}.keyvals div{{font-weight:600}}.keyvals span{{color:var(--muted);margin-bottom:5px}}.grid{{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}}.meta,.muted,.evidence,footer{{color:var(--muted)}}.chip{{display:inline-block;background:var(--soft);color:var(--violet);border-radius:999px;padding:5px 9px;margin:3px;font-size:.86rem;font-weight:700}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px;text-align:left;border-bottom:1px solid var(--line)}}th{{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}}ul{{padding-left:20px}}li{{margin:.55rem 0}}footer{{border-top:1px solid var(--line);padding:22px 0}}@media(max-width:720px){{.axes,.keyvals,.split{{grid-template-columns:1fr}}.hero{{padding-top:42px}}.table-wrap{{overflow-x:auto}}}}</style></head><body>{body}</body></html>"""
 

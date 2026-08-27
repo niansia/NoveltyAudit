@@ -568,7 +568,7 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
             {"paper_id": "B", "provider_returned_count": 0, "status": "EMPTY_AT_PROVIDER", "provider_observations": [{"provider": "openalex", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}, {"provider": "semantic-scholar", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]},
         ],
         "observation_window_days": 900,
-        "observation_window_status": "MATURE",
+        "observation_window_status": "MEETS_DIAGNOSTIC_THRESHOLD",
         "observation_window_threshold_days": 548,
         "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
@@ -614,9 +614,9 @@ def test_explicit_single_provider_scope_cannot_claim_complete_union(valid_report
     assert any("COMPLETE graph expansion" in error for error in errors)
 
 
-def test_observation_window_status_cannot_be_relabelled_as_mature(valid_report):
+def test_observation_window_status_cannot_be_relabelled(valid_report):
     report = deepcopy(valid_report)
-    report["search"]["graph_expansions"][0]["observation_window_status"] = "SHORT"
+    report["search"]["graph_expansions"][0]["observation_window_status"] = "BELOW_DIAGNOSTIC_THRESHOLD"
     errors = validate_report(report)
     assert any("observation_window_status is inconsistent" in error for error in errors)
 
@@ -626,6 +626,48 @@ def test_sensitivity_checked_policy_cannot_swap_in_an_undocumented_threshold(val
     report["search"]["bridge_policy"]["high_citation_threshold"] = 999
     errors = validate_report(report)
     assert any("documented v0.3.1 operational guard" in error for error in errors)
+
+
+def test_calibrated_policy_cannot_be_claimed_with_a_source_string_alone(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["bridge_policy"] = {
+        "status": "CALIBRATED",
+        "high_citation_threshold": 999,
+        "source": "trust me",
+        "evidence": {"dataset": None, "method": None, "preregistered": None},
+    }
+    errors = validate_report(report)
+    assert any("CALIBRATED bridge policy requires" in error for error in errors)
+
+
+def test_documented_override_and_evidence_backed_calibration_remain_distinct(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["bridge_policy"] = {
+        "status": "DOCUMENTED_OVERRIDE",
+        "high_citation_threshold": 999,
+        "source": "Documented local protocol",
+        "evidence": {"dataset": None, "method": None, "preregistered": None},
+    }
+    assert validate_report(report) == []
+
+    report["search"]["bridge_policy"] = {
+        "status": "CALIBRATED",
+        "high_citation_threshold": 999,
+        "source": "Preregistered protocol DOI:10.0000/example",
+        "evidence": {
+            "dataset": "field-set-v1",
+            "method": "Held-out threshold selection",
+            "preregistered": True,
+        },
+    }
+    assert validate_report(report) == []
+
+
+def test_manifest_must_record_evidence_processing_runtime(valid_report):
+    report = deepcopy(valid_report)
+    del report["run_manifest"]["runtime_environment"]["dependencies"]["pypdf"]
+    errors = validate_report(report)
+    assert any("pypdf" in error for error in errors)
 
 def test_graph_negative_diagnostics_are_recomputed(valid_report):
     report = deepcopy(valid_report)

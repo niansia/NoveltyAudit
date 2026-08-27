@@ -3,10 +3,23 @@
 from __future__ import annotations
 
 import hashlib
+from importlib import metadata
 import json
+import platform
 from typing import Any
 
 from validate_output import validate_report
+
+
+def runtime_environment() -> dict[str, Any]:
+    """Return the resolved interpreter and evidence-processing dependency versions."""
+    return {
+        "python_version": platform.python_version(),
+        "dependencies": {
+            "jsonschema": metadata.version("jsonschema"),
+            "pypdf": metadata.version("pypdf"),
+        },
+    }
 
 
 def report_hash(report: dict[str, Any]) -> str:

@@ -21,7 +21,7 @@ The generic label “novelty audit” is crowded. Version 0.3.1 therefore distri
 
 1. frozen atomic claim facets;
 2. evidence-bound Minimal Prior Set of at most three papers;
-3. graph discovery with provider/maturity-scoped negatives, followed by textual Bridge Evidence promotion;
+3. graph discovery with provider/observation-window-scoped negatives, followed by textual Bridge Evidence promotion;
 4. earliest-public-date temporal safety;
 5. independent Novelty Risk, Search Protocol Coverage, and Evidence Confidence.
 

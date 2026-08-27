@@ -163,7 +163,9 @@ def test_summary_does_not_put_partial_pairs_in_zero_denominator():
     assert summary["bridges"]["complete_multi_prior_cases"] == 0
     assert "product_signal" not in summary["bridges"]
     assert "composition_case_prevalence_lower_bound" not in summary["case_coverage"]
-    assert summary["case_coverage"]["multi_prior_mention_prevalence_lower_bound"] == 1.0
+    assert summary["case_coverage"]["detected_multi_prior_mention_rate"] == 1.0
+    assert "pair_bridge_base_rate_exact_95pct_interval" not in summary["bridges"]
+    assert summary["bridges"]["pair_bridge_base_rate_inference"] == "DESCRIPTIVE_CLUSTERED_WITHIN_CASE"
 
 
 def test_exact_binomial_interval_discloses_small_case_sample_uncertainty():
@@ -180,9 +182,11 @@ def test_public_aggregate_uses_measured_semantics_without_magic_signal():
     import json
 
     summary = json.loads((repo_root / "docs" / "bridge-base-rate-summary.json").read_text(encoding="utf-8"))
-    assert summary["schema_version"] == "1.1"
-    assert summary["case_coverage"]["multi_prior_mention_prevalence_lower_bound"] == 0.2805
+    assert summary["schema_version"] == "1.2"
+    assert summary["case_coverage"]["detected_multi_prior_mention_rate"] == 0.2805
+    assert "multi_prior_mention_prevalence_lower_bound" not in summary["case_coverage"]
     assert "composition_case_prevalence_lower_bound" not in summary["case_coverage"]
     assert "product_signal" not in summary["bridges"]
     assert summary["prior_resolution"]["observed_nonempty_backward_coverage_with_s2_fallback_count"] == 56
     assert summary["bridges"]["case_bridge_base_rate_exact_95pct_interval"]["lower"] == 0.0641
+    assert "pair_bridge_base_rate_exact_95pct_interval" not in summary["bridges"]

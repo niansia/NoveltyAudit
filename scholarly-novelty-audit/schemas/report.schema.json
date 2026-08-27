@@ -12,7 +12,7 @@
     "candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
     "run_manifest": {
       "type": "object",
-      "required": ["tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"],
+      "required": ["tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints", "runtime_environment"],
       "properties": {
         "tool_version": {"const": "0.3.1"},
         "config_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -23,7 +23,24 @@
         "retrieval_started_at": {"type": "string", "format": "date-time"},
         "retrieval_completed_at": {"type": "string", "format": "date-time"},
         "candidate_snapshot_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "provider_endpoints": {"type": "array", "items": {"type": "object", "required": ["name", "endpoint", "version"]}}
+        "provider_endpoints": {"type": "array", "items": {"type": "object", "required": ["name", "endpoint", "version"]}},
+        "runtime_environment": {
+          "type": "object",
+          "required": ["python_version", "dependencies"],
+          "properties": {
+            "python_version": {"type": "string", "minLength": 1},
+            "dependencies": {
+              "type": "object",
+              "required": ["jsonschema", "pypdf"],
+              "properties": {
+                "jsonschema": {"type": "string", "minLength": 1},
+                "pypdf": {"type": "string", "minLength": 1}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
       }
     },
     "input": {
@@ -166,7 +183,7 @@
               "landscape_bridge_candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
               "endpoint_reference_observations": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "required": ["paper_id", "provider_returned_count", "status", "provider_observations"], "properties": {"paper_id": {"type": "string"}, "provider_returned_count": {"type": ["integer", "null"], "minimum": 0}, "status": {"enum": ["NONEMPTY", "EMPTY_AT_PROVIDER", "FAILED"]}, "provider_observations": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["provider", "returned_count", "status"], "properties": {"provider": {"type": "string"}, "returned_count": {"type": ["integer", "null"], "minimum": 0}, "status": {"enum": ["NONEMPTY", "EMPTY_AT_PROVIDER", "FAILED"]}}}}}}},
               "observation_window_days": {"type": ["integer", "null"]},
-              "observation_window_status": {"enum": ["NO_CUTOFF", "ENDPOINT_DATE_UNRESOLVED", "POST_CUTOFF_ENDPOINT", "SHORT", "MATURE"]},
+              "observation_window_status": {"enum": ["NO_CUTOFF", "ENDPOINT_DATE_UNRESOLVED", "POST_CUTOFF_ENDPOINT", "BELOW_DIAGNOSTIC_THRESHOLD", "MEETS_DIAGNOSTIC_THRESHOLD"]},
               "observation_window_threshold_days": {"const": 548},
               "negative_result_scope": {"enum": ["NO_HISTORICAL_CUTOFF", "INCOMPLETE_EXPANSION", "HISTORICAL_CANDIDATE_PRESENT", "NO_HISTORICAL_CANDIDATE_ENDPOINT_DATE_UNRESOLVED", "NO_HISTORICAL_CANDIDATE_POST_CUTOFF_ENDPOINT", "NO_HISTORICAL_CANDIDATE_PROVIDER_COVERAGE_LIMITED", "NO_HISTORICAL_CANDIDATE_WITHIN_COMPLETE_EXPANSION"]},
               "discovered_paper_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
@@ -177,7 +194,26 @@
         "failures": {"type": "array", "items": {"type": "object", "required": ["provider", "type", "detail"], "properties": {"provider": {"type": "string"}, "type": {"enum": ["RATE_LIMIT", "TIMEOUT", "HTTP_5XX", "MALFORMED_RESPONSE", "TRUNCATED", "AUTH", "OTHER"]}, "detail": {"type": "string"}}}},
         "gaps": {"type": "array", "items": {"type": "string"}},
         "obligations": {"type": "array", "items": {"type": "object", "required": ["id", "status", "detail"], "properties": {"id": {"type": "string"}, "status": {"enum": ["COMPLETE", "INCOMPLETE"]}, "detail": {"type": "string"}}}},
-        "bridge_policy": {"type": "object", "required": ["status", "high_citation_threshold", "source"], "properties": {"status": {"enum": ["CALIBRATED", "SENSITIVITY_CHECKED", "UNCONFIGURED"]}, "high_citation_threshold": {"type": ["integer", "null"], "minimum": 1}, "source": {"type": "string", "minLength": 1}}},
+        "bridge_policy": {
+          "type": "object",
+          "required": ["status", "high_citation_threshold", "source", "evidence"],
+          "properties": {
+            "status": {"enum": ["CALIBRATED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE", "UNCONFIGURED"]},
+            "high_citation_threshold": {"type": ["integer", "null"], "minimum": 1},
+            "source": {"type": "string", "minLength": 1},
+            "evidence": {
+              "type": "object",
+              "required": ["dataset", "method", "preregistered"],
+              "properties": {
+                "dataset": {"type": ["string", "null"], "minLength": 1},
+                "method": {"type": ["string", "null"], "minLength": 1},
+                "preregistered": {"type": ["boolean", "null"]}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "coverage_derivation": {"type": "object", "required": ["level", "scope", "successful_providers", "successful_families", "reasons"], "properties": {"level": {"enum": ["BROAD", "MODERATE", "NARROW"]}, "scope": {"const": "PROTOCOL_EXECUTION_NOT_RECALL"}, "successful_providers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "successful_families": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "reasons": {"type": "array", "items": {"type": "string"}}}}
       }
     },

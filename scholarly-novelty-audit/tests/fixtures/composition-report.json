@@ -17,7 +17,11 @@
       {"name": "openalex", "endpoint": "https://api.openalex.org/works", "version": "2026-08"},
       {"name": "semantic-scholar", "endpoint": "https://api.semanticscholar.org/graph/v1", "version": "graph-v1"},
       {"name": "arxiv", "endpoint": "https://export.arxiv.org/api/query", "version": "atom"}
-    ]
+    ],
+    "runtime_environment": {
+      "python_version": "3.12.13",
+      "dependencies": {"jsonschema": "4.26.0", "pypdf": "5.9.0"}
+    }
   },
   "input": {
     "claim": "We introduce an architecture with adaptive memory and compression-aware selection.",
@@ -144,7 +148,7 @@
           {"paper_id": "B", "provider_returned_count": 1, "status": "NONEMPTY", "provider_observations": [{"provider": "openalex", "returned_count": 1, "status": "NONEMPTY"}, {"provider": "semantic-scholar", "returned_count": 0, "status": "EMPTY_AT_PROVIDER"}]}
         ],
         "observation_window_days": 900,
-        "observation_window_status": "MATURE",
+        "observation_window_status": "MEETS_DIAGNOSTIC_THRESHOLD",
         "observation_window_threshold_days": 548,
         "negative_result_scope": "HISTORICAL_CANDIDATE_PRESENT",
         "discovered_paper_ids": ["C"],
@@ -157,7 +161,16 @@
       {"id": "critical-facets-multi-family", "status": "COMPLETE", "detail": "Each critical facet was covered by multiple query families."},
       {"id": "composition-bridge", "status": "COMPLETE", "detail": "A dedicated bridge query was executed."}
     ],
-    "bridge_policy": {"status": "SENSITIVITY_CHECKED", "high_citation_threshold": 500, "source": "TUdatalib 82-case exploratory snapshot dated 2026-08-27: pair bridge rates were 8.47%-12.12% across endpoint thresholds 50, 100, 250, 500, and 1000. The 500-citation default is an operational base-rate guard, not a universal field calibration or performance claim."},
+    "bridge_policy": {
+      "status": "SENSITIVITY_CHECKED",
+      "high_citation_threshold": 500,
+      "source": "TUdatalib 82-case exploratory snapshot dated 2026-08-27: pair bridge rates were 8.47%-12.12% across endpoint thresholds 50, 100, 250, 500, and 1000. The 500-citation default is an operational base-rate guard, not a universal field calibration or performance claim.",
+      "evidence": {
+        "dataset": "TUdatalib item tudatalib/4988, 82 annotated cases, snapshot 2026-08-27",
+        "method": "Endpoint citation-threshold sensitivity analysis at 50, 100, 250, 500, and 1000 citations",
+        "preregistered": false
+      }
+    },
     "coverage_derivation": {
       "level": "BROAD",
       "scope": "PROTOCOL_EXECUTION_NOT_RECALL",

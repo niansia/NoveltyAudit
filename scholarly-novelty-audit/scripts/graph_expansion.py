@@ -63,7 +63,7 @@ def graph_preflight(
     paper_b_id: str,
     cutoff: str | None,
 ) -> dict[str, Any]:
-    """Compute the pair maturity diagnostic before any provider call."""
+    """Compute the pair observation-window diagnostic before any provider call."""
     index = {str(paper.get("id")): paper for paper in papers}
     if paper_a_id not in index or paper_b_id not in index or paper_a_id == paper_b_id:
         raise ValueError("paper-a and paper-b must be distinct canonical IDs in the papers file")
@@ -78,16 +78,17 @@ def graph_preflight(
         status = "POST_CUTOFF_ENDPOINT"
         interpretation = "At least one endpoint appeared after the historical cutoff."
     elif window < SHORT_OBSERVATION_WINDOW_DAYS:
-        status = "SHORT"
+        status = "BELOW_DIAGNOSTIC_THRESHOLD"
         interpretation = (
             "The pair had less than 18 months to accumulate a survey or co-citation trail; "
             "a zero bridge result will be low-information even with complete retrieval."
         )
     else:
-        status = "MATURE"
+        status = "MEETS_DIAGNOSTIC_THRESHOLD"
         interpretation = (
-            "The pair meets the exploratory 18-month maturity diagnostic; provider coverage "
-            "and traversal completeness still govern whether a zero is interpretable."
+            "The pair meets the exploratory 18-month observation-window threshold; this does not "
+            "establish field maturity, and provider coverage plus traversal completeness still "
+            "govern whether a zero is interpretable."
         )
     return {
         "paper_ids": [paper_a_id, paper_b_id],

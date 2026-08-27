@@ -12,6 +12,7 @@ from typing import Any
 
 from composition import criticality_sensitivity, solve_mps
 from citation_graph import (
+    DEFAULT_BRIDGE_POLICY_EVIDENCE,
     DEFAULT_BRIDGE_POLICY_SOURCE,
     DEFAULT_BRIDGE_POLICY_STATUS,
     DEFAULT_HIGH_CITATION_THRESHOLD,
@@ -25,7 +26,7 @@ from normalize_paper import normalize_many
 from orchestrate_search import run_search_plan
 from providers import SEARCH_PROVIDERS
 from providers.base import ProviderError
-from report_assembly import evaluate_report_attempt
+from report_assembly import evaluate_report_attempt, runtime_environment
 from resolve_dates import apply_cutoff_many
 from snapshot_diff import diff_reports
 from validate_output import graph_expansion_gap_marker, validate_report
@@ -145,13 +146,35 @@ def command_snapshot_diff(args: argparse.Namespace) -> int:
 def command_bridge(args: argparse.Namespace) -> int:
     papers = records(read_json(args.papers))
     policy_source = getattr(args, "bridge_policy_source", None)
-    if args.high_citation_threshold == DEFAULT_HIGH_CITATION_THRESHOLD and not policy_source:
+    calibration_dataset = getattr(args, "calibration_dataset", None)
+    calibration_method = getattr(args, "calibration_method", None)
+    calibration_preregistered = bool(getattr(args, "calibration_preregistered", False))
+    calibration_requested = any((calibration_dataset, calibration_method, calibration_preregistered))
+    if (
+        args.high_citation_threshold == DEFAULT_HIGH_CITATION_THRESHOLD
+        and not policy_source
+        and not calibration_requested
+    ):
         policy_status = DEFAULT_BRIDGE_POLICY_STATUS
         policy_source = DEFAULT_BRIDGE_POLICY_SOURCE
+        policy_evidence = dict(DEFAULT_BRIDGE_POLICY_EVIDENCE)
     elif not policy_source:
         raise ValueError("a custom high-citation threshold requires --bridge-policy-source")
-    else:
+    elif calibration_requested:
+        if not calibration_dataset or not calibration_method or not calibration_preregistered:
+            raise ValueError(
+                "CALIBRATED requires --calibration-dataset, --calibration-method, "
+                "and --calibration-preregistered"
+            )
         policy_status = "CALIBRATED"
+        policy_evidence = {
+            "dataset": calibration_dataset,
+            "method": calibration_method,
+            "preregistered": True,
+        }
+    else:
+        policy_status = "DOCUMENTED_OVERRIDE"
+        policy_evidence = {"dataset": None, "method": None, "preregistered": None}
     discovered = find_bridges(
         args.paper_a, args.paper_b, papers, cutoff=args.cutoff,
         high_citation_threshold=args.high_citation_threshold,
@@ -168,6 +191,7 @@ def command_bridge(args: argparse.Namespace) -> int:
             "status": policy_status,
             "high_citation_threshold": args.high_citation_threshold,
             "source": policy_source,
+            "evidence": policy_evidence,
         },
     })
     return EXIT_COMPLETE
@@ -176,6 +200,11 @@ def command_bridge(args: argparse.Namespace) -> int:
 def command_graph_preflight(args: argparse.Namespace) -> int:
     papers = records(read_json(args.papers))
     write_json(args.output, graph_preflight(papers, args.paper_a, args.paper_b, args.cutoff))
+    return EXIT_COMPLETE
+
+
+def command_runtime_info(args: argparse.Namespace) -> int:
+    write_json(args.output, runtime_environment())
     return EXIT_COMPLETE
 
 
@@ -342,12 +371,18 @@ def parser() -> argparse.ArgumentParser:
     bridge.add_argument("--paper-b", required=True)
     bridge.add_argument("--cutoff")
     bridge.add_argument("--high-citation-threshold", type=int, default=DEFAULT_HIGH_CITATION_THRESHOLD)
-    bridge.add_argument("--bridge-policy-source", help="required citation or preregistration for a custom threshold")
+    bridge.add_argument("--bridge-policy-source", help="required documented source for a custom threshold")
+    bridge.add_argument("--calibration-dataset", help="dataset identifier required for a CALIBRATED policy")
+    bridge.add_argument("--calibration-method", help="calibration method required for a CALIBRATED policy")
+    bridge.add_argument(
+        "--calibration-preregistered", action="store_true",
+        help="assert that the supplied calibration was preregistered",
+    )
     bridge.add_argument("--output", required=True)
     bridge.set_defaults(func=command_bridge)
 
     graph_preflight_parser = sub.add_parser(
-        "graph-preflight", help="compute pair maturity before citation-provider calls",
+        "graph-preflight", help="compute pair observation window before citation-provider calls",
     )
     graph_preflight_parser.add_argument("--papers", required=True)
     graph_preflight_parser.add_argument("--paper-a", required=True)
@@ -355,6 +390,12 @@ def parser() -> argparse.ArgumentParser:
     graph_preflight_parser.add_argument("--cutoff", required=True)
     graph_preflight_parser.add_argument("--output", required=True)
     graph_preflight_parser.set_defaults(func=command_graph_preflight)
+
+    runtime_info_parser = sub.add_parser(
+        "runtime-info", help="record interpreter and evidence-processing dependency versions",
+    )
+    runtime_info_parser.add_argument("--output", required=True)
+    runtime_info_parser.set_defaults(func=command_runtime_info)
 
     expand_graph_parser = sub.add_parser("expand-graph", help="union available provider graph neighborhoods and co-citation candidates")
     expand_graph_parser.add_argument("--papers", required=True)

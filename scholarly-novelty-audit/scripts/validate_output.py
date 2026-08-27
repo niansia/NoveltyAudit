@@ -11,6 +11,7 @@ from itertools import combinations
 from typing import Any
 
 from citation_graph import (
+    DEFAULT_BRIDGE_POLICY_EVIDENCE,
     DEFAULT_BRIDGE_POLICY_SOURCE,
     DEFAULT_HIGH_CITATION_THRESHOLD,
     find_bridges,
@@ -320,20 +321,38 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     if bibliography.get("status") == "NOT_PROVIDED" and bibliography_entries:
         errors.append("author_bibliography cannot contain entries when it was not provided")
     bridge_policy = report["search"].get("bridge_policy") or {}
+    bridge_policy_status = bridge_policy.get("status")
     high_citation_threshold = bridge_policy.get("high_citation_threshold")
-    if bridge_policy.get("status") in {"CALIBRATED", "SENSITIVITY_CHECKED"} and not isinstance(high_citation_threshold, int):
+    policy_evidence = bridge_policy.get("evidence") or {}
+    if bridge_policy_status in {"CALIBRATED", "SENSITIVITY_CHECKED", "DOCUMENTED_OVERRIDE"} and not isinstance(high_citation_threshold, int):
         errors.append("configured bridge policy requires an integer high_citation_threshold")
-    if bridge_policy.get("status") == "UNCONFIGURED" and high_citation_threshold is not None:
+    if bridge_policy_status == "UNCONFIGURED" and high_citation_threshold is not None:
         errors.append("UNCONFIGURED bridge policy cannot claim a high_citation_threshold")
-    if bridge_policy.get("status") == "SENSITIVITY_CHECKED" and (
+    if bridge_policy_status == "SENSITIVITY_CHECKED" and (
         high_citation_threshold != DEFAULT_HIGH_CITATION_THRESHOLD
         or bridge_policy.get("source") != DEFAULT_BRIDGE_POLICY_SOURCE
+        or policy_evidence != DEFAULT_BRIDGE_POLICY_EVIDENCE
     ):
         errors.append("SENSITIVITY_CHECKED bridge policy must use the documented v0.3.1 operational guard")
+    if bridge_policy_status == "CALIBRATED" and (
+        not isinstance(policy_evidence.get("dataset"), str)
+        or not policy_evidence.get("dataset", "").strip()
+        or not isinstance(policy_evidence.get("method"), str)
+        or not policy_evidence.get("method", "").strip()
+        or policy_evidence.get("preregistered") is not True
+    ):
+        errors.append("CALIBRATED bridge policy requires a dataset, method, and preregistered=true")
     manifest = report.get("run_manifest") or {}
-    for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"):
+    for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints", "runtime_environment"):
         if not manifest.get(field):
             errors.append(f"run_manifest missing {field}")
+    runtime = manifest.get("runtime_environment") or {}
+    dependencies = runtime.get("dependencies") if isinstance(runtime.get("dependencies"), dict) else {}
+    if not isinstance(runtime.get("python_version"), str) or not runtime.get("python_version", "").strip():
+        errors.append("run_manifest.runtime_environment missing python_version")
+    for dependency in ("jsonschema", "pypdf"):
+        if not isinstance(dependencies.get(dependency), str) or not dependencies.get(dependency, "").strip():
+            errors.append(f"run_manifest.runtime_environment missing {dependency} version")
     if manifest.get("tool_version") != "0.3.1":
         errors.append("run_manifest.tool_version must match this validator version")
     if manifest.get("cutoff") != cutoff:
@@ -1143,8 +1162,8 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             "NO_CUTOFF" if not expansion.get("cutoff")
             else "ENDPOINT_DATE_UNRESOLVED" if expected_window is None
             else "POST_CUTOFF_ENDPOINT" if expected_window < 0
-            else "SHORT" if expected_window < SHORT_OBSERVATION_WINDOW_DAYS
-            else "MATURE"
+            else "BELOW_DIAGNOSTIC_THRESHOLD" if expected_window < SHORT_OBSERVATION_WINDOW_DAYS
+            else "MEETS_DIAGNOSTIC_THRESHOLD"
         )
         if expansion.get("observation_window_status") != expected_window_status:
             errors.append(f"graph expansion {expansion_id} observation_window_status is inconsistent")

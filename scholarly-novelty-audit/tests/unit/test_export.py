@@ -11,6 +11,8 @@ def test_markdown_contains_three_axes_and_mps(valid_report):
     assert "not demonstrated recall" in output
     assert "MPS search bound: K ≤ 3" in output
     assert "Adaptive Memory Systems + Compression-aware Selection" in output
+    assert "Python: 3\\.12\\.13" in output
+    assert "pypdf: 5\\.9\\.0" in output
 
 
 def test_html_escapes_untrusted_claim(valid_report):
@@ -20,6 +22,7 @@ def test_html_escapes_untrusted_claim(valid_report):
     assert "&lt;script&gt;" in output
     assert "<table>" in output
     assert "**Novelty Risk:**" not in output
+    assert "jsonschema 4.26.0" in output
 
 
 def test_markdown_collapses_untrusted_newlines(valid_report):

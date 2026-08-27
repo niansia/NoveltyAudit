@@ -15,7 +15,7 @@ Use `schemas/report.schema.json` as the machine contract. Important human-facing
 11. excluded, post-cutoff, and date-uncertain papers;
 12. audit log and reproducibility metadata.
 
-Every adverse report-level claim should link to stable evidence IDs. Use empty arrays or explicit `none found` explanations instead of omitting required negative findings.
+Every adverse report-level claim should link to stable evidence IDs. Use empty arrays or explicit `none found` explanations instead of omitting required negative findings. `run_manifest.runtime_environment` records the resolved Python, `jsonschema`, and `pypdf` versions; generate it with `runtime-info`, not from dependency ranges. Bridge-policy status is also provenance: `DOCUMENTED_OVERRIDE` is not `CALIBRATED`, and the latter requires a machine-readable dataset, method, and `preregistered=true`.
 
 For every recomputed MPS containing two or more papers, `search.graph_expansions` must include a `COMPLETE` record for every endpoint pair. Missing and `PARTIAL` pairs require `classification=INCONCLUSIVE`, `novelty_risk=INCONCLUSIVE`, and the exact lexicographically ordered gap marker `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>`.
 

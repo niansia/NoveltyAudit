@@ -15,6 +15,11 @@ DEFAULT_BRIDGE_POLICY_SOURCE = (
     "8.47%-12.12% across endpoint thresholds 50, 100, 250, 500, and 1000. The 500-citation "
     "default is an operational base-rate guard, not a universal field calibration or performance claim."
 )
+DEFAULT_BRIDGE_POLICY_EVIDENCE = {
+    "dataset": "TUdatalib item tudatalib/4988, 82 annotated cases, snapshot 2026-08-27",
+    "method": "Endpoint citation-threshold sensitivity analysis at 50, 100, 250, 500, and 1000 citations",
+    "preregistered": False,
+}
 
 
 def _alias_forms(value: Any) -> set[str]:
