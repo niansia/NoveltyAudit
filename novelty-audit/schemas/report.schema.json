@@ -1,13 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/report.schema.json",
+  "$id": "https://noveltyaudit.dev/schemas/v0.2/report.schema.json",
+  "x-schema-version": "0.2.0",
   "title": "NoveltyAudit Report",
   "type": "object",
-  "required": ["schema_version", "audit_id", "generated_at", "input", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
+  "required": ["schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
   "properties": {
-    "schema_version": {"const": "0.1.0"},
+    "schema_version": {"const": "0.2.0"},
     "audit_id": {"type": "string", "minLength": 1},
     "generated_at": {"type": "string", "format": "date-time"},
+    "candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
+    "run_manifest": {
+      "type": "object",
+      "required": ["tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"],
+      "properties": {
+        "tool_version": {"const": "0.2.0"},
+        "config_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "cutoff": {"type": "string", "format": "date"},
+        "domain": {"type": "string", "minLength": 1},
+        "model_name": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "retrieval_started_at": {"type": "string", "format": "date-time"},
+        "retrieval_completed_at": {"type": "string", "format": "date-time"},
+        "candidate_snapshot_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "provider_endpoints": {"type": "array", "items": {"type": "object", "required": ["name", "endpoint", "version"]}}
+      }
+    },
     "input": {
       "type": "object",
       "required": ["claim", "normalized_claim", "cutoff", "strict_date"],
@@ -22,43 +40,57 @@
     "claim_map": {"$ref": "claim.schema.json"},
     "verdict": {
       "type": "object",
-      "required": ["classification", "novelty_risk", "search_coverage", "evidence_confidence", "main_concern", "evidence_ids"],
+      "required": ["classification", "novelty_risk", "search_coverage", "evidence_confidence", "main_concern", "evidence_ids", "decided_at"],
       "properties": {
         "classification": {"enum": ["DIRECT_PRECEDENT", "STRONG_COMPOSITION_RISK", "PLAUSIBLE_COMPOSITION_RISK", "FRAGMENTED_PRECEDENT", "RESIDUAL_NOVELTY", "INCONCLUSIVE"]},
         "novelty_risk": {"enum": ["HIGH", "MEDIUM", "LOW", "INCONCLUSIVE"]},
         "search_coverage": {"enum": ["BROAD", "MODERATE", "NARROW"]},
         "evidence_confidence": {"enum": ["STRONG", "MIXED", "WEAK"]},
+        "decided_at": {"type": "string", "format": "date-time"},
         "main_concern": {"type": "string"},
-        "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "risk_basis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "detail"],
+            "properties": {
+              "type": {"enum": ["CRITICALITY_SENSITIVITY_COLLAPSE", "CRITICALITY_DISPUTE", "OTHER_EXPLICIT_RISK"]},
+              "detail": {"type": "string", "minLength": 1},
+              "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+            }
+          }
+        }
       }
     },
     "papers": {"type": "array", "items": {"$ref": "paper.schema.json"}},
     "evidence": {"type": "array", "items": {"$ref": "evidence.schema.json"}},
-    "top_killers": {"type": "array"},
-    "minimal_prior_sets": {"type": "array"},
-    "bridges": {"type": "array"},
-    "criticality_sensitivity": {"type": "array"},
-    "ancestor_terms": {"type": "array"},
+    "top_killers": {"type": "array", "items": {"type": "object", "required": ["paper_id", "covers", "does_not_cover", "evidence_ids", "prior_awareness"], "properties": {"paper_id": {"type": "string"}, "covers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "does_not_cover": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "prior_awareness": {"enum": ["OVERLOOKED", "ALREADY_CITED", "UNKNOWN"]}}}},
+    "minimal_prior_sets": {"type": "array", "items": {"type": "object", "required": ["paper_ids", "size", "covered_facets", "evidence_ids"], "properties": {"paper_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 3, "uniqueItems": true}, "size": {"type": "integer", "minimum": 1, "maximum": 3}, "covered_facets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}}},
+    "bridges": {"type": "array", "items": {"type": "object", "required": ["type", "provenance_type", "paper_ids", "source_paper_id", "cutoff_status", "evidence_ids"], "properties": {"type": {"type": "string"}, "provenance_type": {"enum": ["graph", "text"]}, "paper_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2, "uniqueItems": true}, "source_paper_id": {"type": "string"}, "cutoff_status": {"enum": ["ELIGIBLE", "POST_CUTOFF", "DATE_UNCERTAIN"]}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}}},
+    "criticality_sensitivity": {"type": "array", "items": {"type": "object", "required": ["removed_facet", "baseline_size", "alternative_size", "alternative_classification"], "properties": {"removed_facet": {"type": "string"}, "baseline_size": {"type": ["integer", "null"]}, "alternative_size": {"type": ["integer", "null"]}, "alternative_classification": {"type": "string"}}}},
+    "ancestor_terms": {"type": "array", "items": {"type": "object", "required": ["term", "source_paper_id", "first_observed", "evidence_ids"], "properties": {"term": {"type": "string"}, "source_paper_id": {"type": "string"}, "first_observed": {"type": "string", "format": "date"}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}}}},
     "residual_novelty": {"type": "string"},
-    "defensible_rewrite": {"type": "string"},
+    "defensible_rewrite": {"type": "object", "required": ["text", "prior_coverage_claims"], "properties": {"text": {"type": "string", "minLength": 1}, "prior_coverage_claims": {"type": "array", "items": {"type": "object", "required": ["text", "evidence_ids"], "properties": {"text": {"type": "string", "minLength": 1}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}}}}}},
     "search": {
       "type": "object",
-      "required": ["providers", "query_families", "query_runs", "failures", "gaps"],
+      "required": ["providers", "query_families", "query_runs", "failures", "gaps", "obligations"],
       "properties": {
-        "providers": {"type": "array"},
-        "query_families": {"type": "array"},
-        "query_runs": {"type": "array"},
-        "failures": {"type": "array"},
-        "gaps": {"type": "array"}
+        "providers": {"type": "array", "items": {"type": "object", "required": ["name", "status"]}},
+        "query_families": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "query_runs": {"type": "array", "items": {"type": "object", "required": ["query_id", "provider", "family", "query", "reason", "target_facets", "removed_author_terms", "retrieved_at", "result_count", "truncated", "status"]}},
+        "failures": {"type": "array", "items": {"type": "object", "required": ["provider", "type", "detail"], "properties": {"provider": {"type": "string"}, "type": {"enum": ["RATE_LIMIT", "TIMEOUT", "HTTP_5XX", "MALFORMED_RESPONSE", "TRUNCATED", "AUTH", "OTHER"]}, "detail": {"type": "string"}}}},
+        "gaps": {"type": "array", "items": {"type": "string"}},
+        "obligations": {"type": "array", "items": {"type": "object", "required": ["id", "status", "detail"], "properties": {"id": {"type": "string"}, "status": {"enum": ["COMPLETE", "INCOMPLETE"]}, "detail": {"type": "string"}}}}
       }
     },
     "excluded": {
       "type": "object",
       "required": ["post_cutoff", "date_uncertain", "other"],
       "properties": {
-        "post_cutoff": {"type": "array"},
-        "date_uncertain": {"type": "array"},
-        "other": {"type": "array"}
+        "post_cutoff": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "date_uncertain": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "other": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       }
     },
     "audit_log": {"type": "array"}

@@ -18,8 +18,6 @@ class OpenAlexProvider(ScholarProvider):
         params: dict[str, Any] = {}
         if os.getenv("OPENALEX_API_KEY"):
             params["api_key"] = os.environ["OPENALEX_API_KEY"]
-        if os.getenv("OPENALEX_MAILTO"):
-            params["mailto"] = os.environ["OPENALEX_MAILTO"]
         return params
 
     @staticmethod

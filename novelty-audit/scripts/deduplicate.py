@@ -59,7 +59,7 @@ def merge_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         })
         for key in ("title", "abstract", "venue", "doi", "arxiv_id", "url", "year", "citation_count", "open_access"):
             merged[key] = _prefer(merged.get(key), record.get(key))
-        for key in ("providers", "references", "dates", "raw_provenance"):
+        for key in ("providers", "references", "dates", "raw_provenance", "found_by_query_ids"):
             items = merged.get(key, []) + record.get(key, [])
             seen: set[str] = set()
             merged[key] = [item for item in items if not (repr(item) in seen or seen.add(repr(item)))]
@@ -70,6 +70,7 @@ def merge_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         (f"doi:{merged['doi']}" for _ in [0] if merged.get("doi")),
         f"arxiv:{merged['arxiv_id']}" if merged.get("arxiv_id") else merged.get("canonical_key"),
     )
+    merged["cluster_id"] = merged["canonical_key"]
     return merged
 
 

@@ -12,18 +12,30 @@ from typing import Any
 
 
 class JsonCache:
-    def __init__(self, directory: str | Path, ttl_seconds: int = 86400, schema_version: str = "1") -> None:
+    def __init__(
+        self,
+        directory: str | Path,
+        ttl_seconds: int = 86400,
+        schema_version: str = "1",
+        provider_version: str = "unknown",
+        enabled: bool = True,
+    ) -> None:
         self.directory = Path(directory)
-        self.directory.mkdir(parents=True, exist_ok=True)
+        self.enabled = enabled
+        if self.enabled:
+            self.directory.mkdir(parents=True, exist_ok=True)
         self.ttl_seconds = ttl_seconds
         self.schema_version = schema_version
+        self.provider_version = provider_version
 
     def _path(self, namespace: str, key: Any) -> Path:
-        payload = json.dumps([self.schema_version, namespace, key], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload = json.dumps([self.schema_version, self.provider_version, namespace, key], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         return self.directory / f"{digest}.json"
 
     def get(self, namespace: str, key: Any) -> Any | None:
+        if not self.enabled:
+            return None
         path = self._path(namespace, key)
         if not path.exists() or time.time() - path.stat().st_mtime > self.ttl_seconds:
             return None
@@ -35,9 +47,11 @@ class JsonCache:
             return None
         return record.get("value")
 
-    def set(self, namespace: str, key: Any, value: Any) -> Path:
+    def set(self, namespace: str, key: Any, value: Any) -> Path | None:
+        if not self.enabled:
+            return None
         path = self._path(namespace, key)
-        record = {"schema_version": self.schema_version, "stored_at": time.time(), "value": value}
+        record = {"schema_version": self.schema_version, "provider_version": self.provider_version, "stored_at": time.time(), "value": value}
         handle, temp_name = tempfile.mkstemp(prefix="novelty-audit-", suffix=".json", dir=self.directory)
         try:
             with os.fdopen(handle, "w", encoding="utf-8") as stream:
@@ -47,4 +61,3 @@ class JsonCache:
             if os.path.exists(temp_name):
                 os.unlink(temp_name)
         return path
-

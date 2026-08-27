@@ -17,3 +17,4 @@ Use `schemas/report.schema.json` as the machine contract. Important human-facing
 
 Every adverse report-level claim should link to stable evidence IDs. Use empty arrays or explicit `none found` explanations instead of omitting required negative findings.
 
+Breaking schema changes and field migrations are recorded in [schema migrations](schema-migrations.md).

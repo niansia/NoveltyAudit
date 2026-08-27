@@ -54,7 +54,7 @@ def request_json(
     if params:
         query = urlencode({key: value for key, value in params.items() if value is not None})
         url = f"{url}{'&' if '?' in url else '?'}{query}"
-    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.1 (+https://github.com/)"}
+    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.2 (+https://github.com/)"}
     request_headers.update(headers or {})
     last_error: Exception | None = None
     for attempt in range(retries):

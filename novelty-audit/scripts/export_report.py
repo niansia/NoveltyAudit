@@ -9,6 +9,38 @@ from pathlib import Path
 from typing import Any
 
 
+NOVELTY_SCORE = re.compile(r"(?:novelty.{0,40}(?:\d+(?:\.\d{2})?\s*%|\b\d+\.\d{2}\b)|(?:\d+(?:\.\d{2})?\s*%|\b\d+\.\d{2}\b).{0,40}novelty)", re.I | re.S)
+INTERNAL_FIELDS = {"embedding_score", "similarity_score", "ranking_feature", "bridge_rank", "internal_score"}
+
+
+def validate_user_output(content: str, format_name: str) -> list[str]:
+    """Reject fake novelty scores and internal ranking fields in user-facing output."""
+    visible = content
+    if format_name == "html":
+        visible = re.sub(r"<style\b.*?</style>", " ", visible, flags=re.I | re.S)
+        visible = re.sub(r"<[^>]+>", " ", visible)
+        visible = html.unescape(visible)
+    errors = []
+    if NOVELTY_SCORE.search(visible):
+        errors.append("user-facing output contains a novelty percentage or uncalibrated decimal score")
+    lowered = visible.casefold()
+    for field in INTERNAL_FIELDS:
+        if field in lowered:
+            errors.append(f"user-facing output exposes internal ranking field: {field}")
+    return errors
+
+
+def _failure_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return f"{value.get('provider', 'unknown')}: {value.get('type', 'OTHER')} — {value.get('detail', 'no detail')}"
+    return str(value)
+
+
+def _rewrite_text(report: dict[str, Any]) -> str:
+    value = report.get("defensible_rewrite")
+    return str(value.get("text") or "") if isinstance(value, dict) else str(value or "")
+
+
 def _md_inline(value: Any) -> str:
     text = re.sub(r"[\r\n]+", " ", str(value if value is not None else ""))
     text = html.escape(text, quote=False)
@@ -59,10 +91,13 @@ def to_markdown(report: dict[str, Any]) -> str:
         lines.append("No evidence-bound killer paper was found in this audit.")
     for rank, killer in enumerate(report.get("top_killers") or [], start=1):
         paper = papers.get(str(killer.get("paper_id")), {})
+        observed_dates = paper.get("observed_dates") or paper.get("dates") or []
+        date_sources = [f"{item.get('value')} ({item.get('source', 'unknown')})" if isinstance(item, dict) else str(item) for item in observed_dates]
         lines += [
             f"### {rank}. {_md_inline(paper.get('title', killer.get('paper_id')))}",
             "",
             f"- Date: {_md_inline(paper.get('earliest_public_date') or 'uncertain')} ({_md_inline(paper.get('cutoff_status', 'unknown'))})",
+            f"- Observed date sources: {_md_join(date_sources) or 'none'}",
             f"- Prior awareness: {_md_inline(killer.get('prior_awareness', 'UNKNOWN'))}",
             f"- Covers: {_md_join(killer.get('covers') or []) or 'none verified'}",
             f"- Does not cover: {_md_join(killer.get('does_not_cover') or []) or 'none recorded'}",
@@ -87,9 +122,9 @@ def to_markdown(report: dict[str, Any]) -> str:
 
     lines += [
         "", "## Residual Novelty", "", _md_inline(report.get("residual_novelty") or "Not established."),
-        "", "## Defensible Claim Rewrite", "", _md_inline(report.get("defensible_rewrite") or "No rewrite recorded."),
+        "", "## Defensible Claim Rewrite", "", _md_inline(_rewrite_text(report) or "No rewrite recorded."),
         "", "## Search Gaps", "", _list(report.get("search", {}).get("gaps") or []),
-        "", "## Provider Failures", "", _list(report.get("search", {}).get("failures") or []),
+        "", "## Provider Failures", "", _list([_failure_text(value) for value in report.get("search", {}).get("failures") or []]),
         "", "## Exclusions", "",
         f"- Post-cutoff: {_md_join(report.get('excluded', {}).get('post_cutoff') or []) or 'none'}",
         f"- Date-uncertain: {_md_join(report.get('excluded', {}).get('date_uncertain') or []) or 'none'}",
@@ -117,7 +152,9 @@ def to_html(report: dict[str, Any]) -> str:
     killers = []
     for rank, killer in enumerate(report.get("top_killers") or [], start=1):
         paper = papers.get(str(killer.get("paper_id")), {})
-        killers.append(f"""<article class=\"card killer\"><div class=\"eyebrow\">Killer candidate {rank}</div><h3>{e(paper.get('title') or killer.get('paper_id'))}</h3><div class=\"meta\">{e(paper.get('earliest_public_date') or 'date uncertain')} · {e(paper.get('cutoff_status') or 'unknown')} · {e(killer.get('prior_awareness') or 'UNKNOWN')}</div><h4>Covers</h4><div>{chips(killer.get('covers') or [], 'none verified')}</div><h4>Does not cover</h4><div>{chips(killer.get('does_not_cover') or [], 'none recorded')}</div><p class=\"evidence\">Evidence: {e(', '.join(killer.get('evidence_ids') or []) or 'none')}</p></article>""")
+        observed_dates = paper.get("observed_dates") or paper.get("dates") or []
+        date_sources = ", ".join(f"{item.get('value')} ({item.get('source', 'unknown')})" if isinstance(item, dict) else str(item) for item in observed_dates)
+        killers.append(f"""<article class=\"card killer\"><div class=\"eyebrow\">Killer candidate {rank}</div><h3>{e(paper.get('title') or killer.get('paper_id'))}</h3><div class=\"meta\">{e(paper.get('earliest_public_date') or 'date uncertain')} · {e(paper.get('cutoff_status') or 'unknown')} · {e(killer.get('prior_awareness') or 'UNKNOWN')}</div><p class=\"meta\">Observed date sources: {e(date_sources or 'none')}</p><h4>Covers</h4><div>{chips(killer.get('covers') or [], 'none verified')}</div><h4>Does not cover</h4><div>{chips(killer.get('does_not_cover') or [], 'none recorded')}</div><p class=\"evidence\">Evidence: {e(', '.join(killer.get('evidence_ids') or []) or 'none')}</p></article>""")
     if not killers:
         killers.append("<p class=\"muted\">No evidence-bound killer paper was found in this audit.</p>")
 
@@ -135,7 +172,7 @@ def to_html(report: dict[str, Any]) -> str:
         bridge_items.append("<li>No meaningful historical bridge was verified.</li>")
 
     gaps = "".join(f"<li>{e(value)}</li>" for value in report.get("search", {}).get("gaps") or []) or "<li>None recorded</li>"
-    failures = "".join(f"<li>{e(value)}</li>" for value in report.get("search", {}).get("failures") or []) or "<li>None recorded</li>"
+    failures = "".join(f"<li>{e(_failure_text(value))}</li>" for value in report.get("search", {}).get("failures") or []) or "<li>None recorded</li>"
     body = f"""
 <header class=\"hero\">
   <div class=\"eyebrow\">Composition-aware scholarly novelty audit</div>
@@ -154,13 +191,12 @@ def to_html(report: dict[str, Any]) -> str:
   <section><h2>Frozen Claim Map</h2><div class=\"table-wrap\"><table><thead><tr><th>ID</th><th>Type</th><th>Facet</th><th>Critical</th></tr></thead><tbody>{facets}</tbody></table></div></section>
   <section><h2>Top Killer Papers</h2><div class=\"grid\">{''.join(killers)}</div></section>
   <section class=\"split\"><div class=\"card\"><h2>Minimal Prior Set</h2><ul>{''.join(mps_items)}</ul></div><div class=\"card\"><h2>Bridge Evidence</h2><ul>{''.join(bridge_items)}</ul></div></section>
-  <section class=\"split\"><div><h2>Residual Novelty</h2><p>{e(report.get('residual_novelty') or 'Not established.')}</p></div><div class=\"rewrite\"><h2>Defensible Claim Rewrite</h2><p>{e(report.get('defensible_rewrite') or 'No rewrite recorded.')}</p></div></section>
+  <section class=\"split\"><div><h2>Residual Novelty</h2><p>{e(report.get('residual_novelty') or 'Not established.')}</p></div><div class=\"rewrite\"><h2>Defensible Claim Rewrite</h2><p>{e(_rewrite_text(report) or 'No rewrite recorded.')}</p></div></section>
   <section class=\"split\"><div><h2>Search Gaps</h2><ul>{gaps}</ul></div><div><h2>Provider Failures</h2><ul>{failures}</ul></div></section>
   <section><h2>Exclusions</h2><div class=\"card keyvals\"><div><span>Post-cutoff</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('post_cutoff') or []) or 'none')}</div><div><span>Date-uncertain</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('date_uncertain') or []) or 'none')}</div></div></section>
   <footer>Audit {e(report.get('audit_id') or 'not recorded')} · generated {e(report.get('generated_at') or 'not recorded')} · schema {e(report.get('schema_version'))}</footer>
 </main>"""
-    payload = html.escape(json.dumps(report, ensure_ascii=False, indent=2))
-    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>NoveltyAudit Report</title><style>:root{{--ink:#111827;--muted:#6b7280;--violet:#6d28d9;--soft:#f5f3ff;--line:#e5e7eb}}*{{box-sizing:border-box}}body{{margin:0;background:#fafafa;color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}}.hero{{padding:64px max(24px,calc((100vw - 1080px)/2));background:linear-gradient(135deg,#111827,#3b0764);color:white}}.eyebrow{{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#c4b5fd;font-weight:700}}h1{{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1;margin:.45rem 0 1rem}}h2{{font-size:1.45rem;margin:0 0 1rem}}h3{{font-size:1.2rem;margin:.3rem 0}}h4{{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .4rem;color:var(--muted)}}.claim{{max-width:780px;font-size:1.18rem;color:#e5e7eb}}.axes{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:32px 0 18px}}.axes div{{background:#ffffff12;border:1px solid #ffffff24;border-radius:14px;padding:15px}}.axes span,.keyvals span{{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#c4b5fd}}.axes strong{{display:block;font-size:1.3rem;margin-top:4px}}.classification{{display:inline-block;background:#a78bfa;color:#1f1147;border-radius:999px;padding:7px 13px;font-weight:800;font-size:.8rem}}.concern{{max-width:820px;margin:18px 0 0;padding-left:16px;border-left:3px solid #a78bfa}}main{{max-width:1080px;margin:auto;padding:48px 24px}}section{{margin-bottom:48px}}.card,.table-wrap,.rewrite{{background:white;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 8px 30px #11182708}}.keyvals,.split,.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}}.keyvals div{{font-weight:600}}.keyvals span{{color:var(--muted);margin-bottom:5px}}.grid{{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}}.meta,.muted,.evidence,footer{{color:var(--muted)}}.chip{{display:inline-block;background:var(--soft);color:var(--violet);border-radius:999px;padding:5px 9px;margin:3px;font-size:.86rem;font-weight:700}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px;text-align:left;border-bottom:1px solid var(--line)}}th{{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}}ul{{padding-left:20px}}li{{margin:.55rem 0}}footer{{border-top:1px solid var(--line);padding:22px 0}}details{{max-width:1080px;margin:0 auto 48px;padding:0 24px}}pre{{white-space:pre-wrap;background:#111827;color:#e5e7eb;padding:1rem;border-radius:.8rem;overflow:auto}}@media(max-width:720px){{.axes,.keyvals,.split{{grid-template-columns:1fr}}.hero{{padding-top:42px}}.table-wrap{{overflow-x:auto}}}}</style></head><body>{body}<details><summary>Structured JSON</summary><pre>{payload}</pre></details></body></html>"""
+    return f"""<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>NoveltyAudit Report</title><style>:root{{--ink:#111827;--muted:#6b7280;--violet:#6d28d9;--soft:#f5f3ff;--line:#e5e7eb}}*{{box-sizing:border-box}}body{{margin:0;background:#fafafa;color:var(--ink);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}}.hero{{padding:64px max(24px,calc((100vw - 1080px)/2));background:linear-gradient(135deg,#111827,#3b0764);color:white}}.eyebrow{{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:#c4b5fd;font-weight:700}}h1{{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1;margin:.45rem 0 1rem}}h2{{font-size:1.45rem;margin:0 0 1rem}}h3{{font-size:1.2rem;margin:.3rem 0}}h4{{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .4rem;color:var(--muted)}}.claim{{max-width:780px;font-size:1.18rem;color:#e5e7eb}}.axes{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:32px 0 18px}}.axes div{{background:#ffffff12;border:1px solid #ffffff24;border-radius:14px;padding:15px}}.axes span,.keyvals span{{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#c4b5fd}}.axes strong{{display:block;font-size:1.3rem;margin-top:4px}}.classification{{display:inline-block;background:#a78bfa;color:#1f1147;border-radius:999px;padding:7px 13px;font-weight:800;font-size:.8rem}}.concern{{max-width:820px;margin:18px 0 0;padding-left:16px;border-left:3px solid #a78bfa}}main{{max-width:1080px;margin:auto;padding:48px 24px}}section{{margin-bottom:48px}}.card,.table-wrap,.rewrite{{background:white;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 8px 30px #11182708}}.keyvals,.split,.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}}.keyvals div{{font-weight:600}}.keyvals span{{color:var(--muted);margin-bottom:5px}}.grid{{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}}.meta,.muted,.evidence,footer{{color:var(--muted)}}.chip{{display:inline-block;background:var(--soft);color:var(--violet);border-radius:999px;padding:5px 9px;margin:3px;font-size:.86rem;font-weight:700}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px;text-align:left;border-bottom:1px solid var(--line)}}th{{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}}ul{{padding-left:20px}}li{{margin:.55rem 0}}footer{{border-top:1px solid var(--line);padding:22px 0}}@media(max-width:720px){{.axes,.keyvals,.split{{grid-template-columns:1fr}}.hero{{padding-top:42px}}.table-wrap{{overflow-x:auto}}}}</style></head><body>{body}</body></html>"""
 
 
 def export(report: dict[str, Any], output: str | Path, format_name: str) -> Path:
@@ -175,5 +211,9 @@ def export(report: dict[str, Any], output: str | Path, format_name: str) -> Path
         content = to_html(report)
     else:
         raise ValueError(f"unsupported format: {format_name}")
+    if format_name in {"markdown", "md", "html"}:
+        errors = validate_user_output(content, "html" if format_name == "html" else "markdown")
+        if errors:
+            raise ValueError("; ".join(errors))
     path.write_text(content, encoding="utf-8")
     return path

@@ -18,16 +18,24 @@ SPACE = re.compile(r"\s+")
 def normalize_doi(value: Any) -> str | None:
     if not value:
         return None
-    doi = DOI_PREFIX.sub("", str(value).strip()).strip().rstrip(".,;)")
+    doi = unicodedata.normalize("NFKC", str(value)).strip()
+    doi = DOI_PREFIX.sub("", doi).strip().rstrip(".,;):。；，）")
     return doi.casefold() or None
 
 
-def normalize_arxiv_id(value: Any) -> str | None:
+def split_arxiv_id(value: Any) -> tuple[str | None, int | None]:
     if not value:
-        return None
-    arxiv_id = ARXIV_PREFIX.sub("", str(value).strip()).replace(".pdf", "")
-    arxiv_id = ARXIV_VERSION.sub("", arxiv_id).strip().casefold()
-    return arxiv_id or None
+        return None, None
+    arxiv_id = unicodedata.normalize("NFKC", str(value)).strip()
+    arxiv_id = ARXIV_PREFIX.sub("", arxiv_id).replace(".pdf", "")
+    match = re.search(r"v(\d+)$", arxiv_id, re.I)
+    version = int(match.group(1)) if match else None
+    base_id = ARXIV_VERSION.sub("", arxiv_id).strip().casefold()
+    return base_id or None, version
+
+
+def normalize_arxiv_id(value: Any) -> str | None:
+    return split_arxiv_id(value)[0]
 
 
 def normalize_title(value: Any) -> str:
@@ -72,9 +80,8 @@ def normalize_paper(record: dict[str, Any], provider: str | None = None) -> dict
     source = deepcopy(record)
     external_ids = source.get("external_ids") or source.get("externalIds") or {}
     doi = normalize_doi(source.get("doi") or external_ids.get("DOI") or external_ids.get("doi"))
-    arxiv_id = normalize_arxiv_id(
-        source.get("arxiv_id") or external_ids.get("ArXiv") or external_ids.get("arxiv")
-    )
+    raw_arxiv_id = source.get("arxiv_id") or external_ids.get("ArXiv") or external_ids.get("arxiv")
+    arxiv_id, arxiv_version = split_arxiv_id(raw_arxiv_id)
     authors = [normalize_author(author) for author in (source.get("authors") or [])]
     providers = _string_list(source.get("providers"))
     if provider and provider not in providers:
@@ -90,11 +97,13 @@ def normalize_paper(record: dict[str, Any], provider: str | None = None) -> dict
         "venue": source.get("venue"),
         "doi": doi,
         "arxiv_id": arxiv_id,
+        "arxiv_version": arxiv_version,
         "url": source.get("url"),
         "providers": providers,
         "provider_ids": dict(source.get("provider_ids") or {}),
         "dates": list(source.get("dates") or []),
         "references": _string_list(source.get("references")),
+        "found_by_query_ids": _string_list(source.get("found_by_query_ids")),
         "citation_count": source.get("citation_count"),
         "open_access": source.get("open_access"),
         "raw_provenance": list(source.get("raw_provenance") or []),
@@ -102,9 +111,9 @@ def normalize_paper(record: dict[str, Any], provider: str | None = None) -> dict
     if provider and result["id"]:
         result["provider_ids"].setdefault(provider, result["id"])
     result["canonical_key"] = canonical_key(result)
+    result["cluster_id"] = str(source.get("cluster_id") or result["canonical_key"])
     return result
 
 
 def normalize_many(records: Iterable[dict[str, Any]], provider: str | None = None) -> list[dict[str, Any]]:
     return [normalize_paper(record, provider=provider) for record in records]
-

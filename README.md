@@ -40,6 +40,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Deterministic direct-citation and co-citation bridge discovery, with explicit textual promotion gates.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
+- Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
 - JSON Schemas, adversarial tests, a golden composition fixture, and a reviewer-grounded benchmark annotation schema.
 
 No paid LLM API is required. Your host agent performs claim decomposition and evidence interpretation; the bundled Python scripts handle deterministic work.
@@ -83,12 +84,14 @@ python novelty-audit/scripts/cli.py dates \
   --cutoff 2025-09-18 \
   --output run/dated.json
 
-python novelty-audit/scripts/cli.py validate --input run/report.json
+python novelty-audit/scripts/cli.py verify-citations \
+  --input run/report.json --output run/report.verified.json
+python novelty-audit/scripts/cli.py validate --input run/report.verified.json
 python novelty-audit/scripts/cli.py export \
-  --input run/report.json --format html --output run/report.html
+  --input run/report.verified.json --format html --output run/report.html
 ```
 
-Provider keys are optional. `S2_API_KEY` reduces Semantic Scholar throttling; `OPENALEX_API_KEY` or `OPENALEX_MAILTO` enables the corresponding OpenAlex access tier. A provider outage must lower Search Coverage rather than silently becoming evidence of novelty.
+Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. A provider outage must lower Search Coverage rather than silently becoming evidence of novelty.
 
 ## Verdicts
 
@@ -101,11 +104,22 @@ Provider keys are optional. `S2_API_KEY` reduces Semantic Scholar throttling; `O
 
 These are bounded audit classifications, not legal opinions or guarantees of originality.
 
+NoveltyAudit performs scholarly-literature reconnaissance only. It does not provide patentability, non-obviousness, freedom-to-operate, or any other legal opinion.
+
+## CLI exit codes
+
+- `0`: complete;
+- `10`: partial completion after a backend failure;
+- `20`: no searchable claim could be extracted;
+- `30`: all configured scholarly providers failed;
+- `40`: evidence or report validation failed;
+- `50`: configuration or credential error.
+
 ## Test
 
 ```bash
 python -m pytest novelty-audit/tests -q
-python .codex-or-system-skill-path/skill-creator/scripts/quick_validate.py novelty-audit
+skills-ref validate ./novelty-audit
 ```
 
 Live smoke tests may encounter provider rate limits; those failures are expected to be explicit. All core algorithms and adversarial invariants run offline.
@@ -113,6 +127,8 @@ Live smoke tests may encounter provider rate limits; those failures are expected
 ## Roadmap that needs public data, not synthetic theater
 
 The deterministic core is implemented. The next growth asset is a licensed set of reviewer-grounded cases: overlooked killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate 20 “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](novelty-audit/benchmark/README.md).
+
+The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md).
 
 ## Contributing
 

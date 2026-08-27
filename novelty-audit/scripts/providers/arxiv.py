@@ -26,7 +26,7 @@ class ArxivProvider(ScholarProvider):
         last_error: Exception | None = None
         for attempt in range(3):
             try:
-                request = Request(url, headers={"User-Agent": "NoveltyAudit/0.1"})
+                request = Request(url, headers={"User-Agent": "NoveltyAudit/0.2"})
                 with urlopen(request, timeout=30) as response:
                     return ET.fromstring(response.read())
             except Exception as error:
@@ -69,4 +69,3 @@ class ArxivProvider(ScholarProvider):
         if entry is None:
             raise ProviderError(f"arXiv paper not found: {identifier}")
         return self._convert(entry)
-

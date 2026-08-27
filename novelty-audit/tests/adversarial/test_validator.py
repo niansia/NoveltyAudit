@@ -1,6 +1,12 @@
 from copy import deepcopy
 
-from validate_output import validate_report
+from validate_output import claim_map_hash, validate_report
+
+
+def refreeze(report):
+    value = claim_map_hash(report["claim_map"])
+    report["claim_map"]["freeze_hash"] = value
+    next(item for item in report["audit_log"] if item.get("event") == "claim_map_frozen")["freeze_hash"] = value
 
 
 def test_valid_fixture_passes(valid_report):
@@ -119,7 +125,7 @@ def test_evidence_must_explicitly_support_each_covered_facet(valid_report):
 
 def test_recomputes_global_minimum_instead_of_trusting_submitted_mps(valid_report):
     report = deepcopy(valid_report)
-    report["evidence"].append({"id": "E6", "paper_id": "A", "span": "Selection is conditioned on compression.", "location": "Method 3.2", "source": "https://example.org/a", "retrieved_at": "2026-08-27T07:30:00Z", "evidence_kind": "METHOD", "supports": ["F2"]})
+    report["evidence"].append({"id": "E6", "canonical_paper_id": "A", "source_level": "TIER_2_FULLTEXT", "span": "Selection is conditioned on compression.", "location": "Method 3.2", "source": "https://example.org/a", "retrieved_at": "2026-08-27T07:30:00Z", "evidence_kind": "METHOD", "supports": ["F2"]})
     report["papers"][0]["coverage"]["F2"] = {"status": "EXACT", "evidence_ids": ["E6"]}
     assert any("not globally minimal" in error for error in validate_report(report))
 
@@ -157,6 +163,12 @@ def test_novelty_risk_must_match_classification(valid_report):
     assert any("conflicts with STRONG_COMPOSITION_RISK" in error for error in validate_report(report))
 
 
+def test_strong_composition_allows_medium_risk(valid_report):
+    report = deepcopy(valid_report)
+    report["verdict"]["novelty_risk"] = "MEDIUM"
+    assert validate_report(report) == []
+
+
 def test_broad_requires_known_structured_providers_and_query_logs(valid_report):
     report = deepcopy(valid_report)
     report["search"]["providers"] = ["fake-one", "fake-two"]
@@ -170,4 +182,87 @@ def test_result_evidence_allowed_for_outcome_facet(valid_report):
     report = deepcopy(valid_report)
     report["claim_map"]["facets"][1]["type"] = "outcome"
     report["evidence"][1]["evidence_kind"] = "RESULT"
+    refreeze(report)
     assert validate_report(report) == []
+
+
+def test_rejects_mutated_frozen_claim_map(valid_report):
+    report = deepcopy(valid_report)
+    report["claim_map"]["facets"][0]["text"] = "changed after retrieval"
+    assert any("freeze_hash does not match" in error for error in validate_report(report))
+
+
+def test_rejects_killer_without_negative_evidence_or_valid_awareness(valid_report):
+    report = deepcopy(valid_report)
+    report["top_killers"][0]["does_not_cover"] = []
+    report["top_killers"][0]["prior_awareness"] = "INVALID"
+    errors = validate_report(report)
+    assert any("at least one does_not_cover" in error for error in errors)
+    assert any("invalid prior_awareness" in error for error in errors)
+
+
+def test_rejects_tier1_hard_coverage(valid_report):
+    report = deepcopy(valid_report)
+    report["evidence"][0]["source_level"] = "TIER_1_METADATA"
+    assert any("not Tier-2" in error or "not evidence-bound" in error for error in validate_report(report))
+
+
+def test_rejects_evidence_retrieved_after_verdict(valid_report):
+    report = deepcopy(valid_report)
+    report["evidence"][0]["retrieved_at"] = "2030-01-01T00:00:00Z"
+    assert any("decided before evidence E1" in error for error in validate_report(report))
+
+
+def test_rejects_query_before_claim_freeze(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["query_runs"][0]["retrieved_at"] = "2025-01-01T00:00:00Z"
+    assert any("ran before the claim map was frozen" in error for error in validate_report(report))
+
+
+def test_rejects_paper_outside_candidate_snapshot(valid_report):
+    report = deepcopy(valid_report)
+    report["candidate_ids"].remove("C")
+    assert any("paper C does not exist in candidate_ids" in error for error in validate_report(report))
+
+
+def test_rejects_post_cutoff_evidence_in_verdict(valid_report):
+    report = deepcopy(valid_report)
+    report["candidate_ids"].append("D")
+    report["papers"].append({
+        "id": "D", "title": "Late paper", "providers": ["openalex"],
+        "dates": [{"value": "2026-01-01", "source": "publisher_online"}],
+        "earliest_public_date": "2026-01-01", "cutoff_status": "POST_CUTOFF",
+        "found_by_query_ids": ["Q-literal"], "coverage": {},
+    })
+    report["excluded"]["post_cutoff"].append("D")
+    report["evidence"].append({
+        "id": "ED", "canonical_paper_id": "D", "source_level": "TIER_1_METADATA",
+        "span": "Late claim", "location": "Abstract", "source": "https://example.org/d",
+        "retrieved_at": "2026-08-27T07:40:00Z", "evidence_kind": "ABSTRACT",
+    })
+    report["verdict"]["evidence_ids"].append("ED")
+    assert any("comes from a non-eligible paper" in error for error in validate_report(report))
+
+
+def test_high_residual_risk_requires_structured_basis(valid_report):
+    report = deepcopy(valid_report)
+    report["verdict"].update({"classification": "RESIDUAL_NOVELTY", "novelty_risk": "HIGH", "evidence_ids": []})
+    report["minimal_prior_sets"] = []
+    report["bridges"] = []
+    assert any("requires an explicit risk_basis" in error for error in validate_report(report))
+
+
+def test_rejects_unverified_doi_and_arxiv_id(valid_report):
+    report = deepcopy(valid_report)
+    report["papers"][0]["doi"] = "10.9999/not-verified"
+    report["papers"][0]["arxiv_id"] = "2401.01234"
+    errors = validate_report(report)
+    assert any("DOI was not independently validated" in error for error in errors)
+    assert any("arXiv ID was not independently validated" in error for error in errors)
+
+
+def test_rejects_provider_failure_hidden_behind_broad_coverage(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["failures"] = [{"provider": "openalex", "type": "RATE_LIMIT", "detail": "HTTP 429"}]
+    errors = validate_report(report)
+    assert any("incompatible with BROAD" in error for error in errors)

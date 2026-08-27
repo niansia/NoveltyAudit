@@ -17,3 +17,12 @@ def test_stale_cache_misses(tmp_path):
     time.sleep(0.01)
     assert cache.get("x", "y") is None
 
+
+def test_provider_version_rotates_cache_and_cache_can_be_disabled(tmp_path):
+    JsonCache(tmp_path, provider_version="v1").set("search", "q", [1])
+    assert JsonCache(tmp_path, provider_version="v2").get("search", "q") is None
+    disabled_path = tmp_path / "disabled"
+    disabled = JsonCache(disabled_path, enabled=False)
+    assert disabled.set("search", "q", [1]) is None
+    assert disabled.get("search", "q") is None
+    assert not disabled_path.exists()

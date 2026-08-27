@@ -23,9 +23,12 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - citation graph bridge discovery 與 textual bridge 升格守門。
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
+- 具版本的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
 - JSON Schemas、golden fixture、測試與 benchmark annotation schema。
 
 核心流程不需要額外付費 LLM API；宿主 agent 負責 claim decomposition 與 evidence interpretation，scripts 只處理可重現的 deterministic 工作。
+
+Provider key 對基本使用並非必要。`S2_API_KEY` 可降低 Semantic Scholar 的節流；免費的 `OPENALEX_API_KEY` 可將 OpenAlex 每日額度從匿名試用額度提高到 1 美元。OpenAlex 已在 2026 年淘汰 polite-pool 制度，因此本專案不使用 `mailto`。
 
 ## 安裝
 
@@ -35,6 +38,13 @@ cp -r ./novelty-audit ~/.codex/skills/novelty-audit
 ```
 
 Claude Code 可改放 `~/.claude/skills/novelty-audit`；跨 agent 慣例可放 `~/.agents/skills/novelty-audit`。實際 skill 資料夾必須叫 `novelty-audit`。
+
+安裝後可執行正式規格與回歸驗證：
+
+```bash
+python -m pytest novelty-audit/tests -q
+skills-ref validate ./novelty-audit
+```
 
 ## 使用
 
@@ -56,6 +66,8 @@ Bridge Evidence、strict temporal filtering、residual novelty 與 Markdown + JS
 - `RESIDUAL_NOVELTY`：仍有 critical mechanism 或 interaction 未被覆蓋。
 - `INCONCLUSIVE`：檢索、日期、全文或證據不足。
 
-完整技術說明請看英文 [README](README.md)，競品查核請看 [landscape review](docs/landscape.md)。
+完整技術說明請看英文 [README](README.md)，競品查核請看 [landscape review](docs/landscape.md)，公開測試前仍需完成的工作則列在 [user-facing release acceptance](docs/release-acceptance.md)。
+
+NoveltyAudit 僅執行學術文獻偵察，不提供 patentability、non-obviousness、freedom-to-operate 或任何其他法律意見。
 
 如果 NoveltyAudit 找到一篇可能比 Reviewer #2 更早找到的 paper，歡迎替 repo 點 Star。

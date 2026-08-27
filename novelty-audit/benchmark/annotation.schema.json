@@ -1,5 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noveltyaudit.dev/schemas/v0.2/benchmark-annotation.schema.json",
+  "x-schema-version": "0.2.0",
   "title": "Reviewer-grounded NoveltyAudit Benchmark Case",
   "type": "object",
   "required": ["case_id", "source_dataset_id", "source_license", "cutoff", "claim_map", "gold_prior_set", "reviewer_evidence", "annotation_provenance"],
@@ -18,4 +20,3 @@
     "annotator_agreement": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
   }
 }
-

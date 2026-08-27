@@ -1,15 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/claim.schema.json",
+  "$id": "https://noveltyaudit.dev/schemas/v0.2/claim.schema.json",
+  "x-schema-version": "0.2.0",
   "title": "NoveltyAudit Claim Map",
   "type": "object",
-  "required": ["claim_id", "claim_text", "frozen_before_retrieval", "frozen_at", "facets"],
+  "required": ["claim_id", "claim_text", "frozen_before_retrieval", "frozen_at", "freeze_hash", "facets"],
   "properties": {
     "claim_id": {"type": "string", "minLength": 1},
     "claim_text": {"type": "string", "minLength": 1},
     "normalized_claim": {"type": "string"},
     "frozen_before_retrieval": {"const": true},
     "frozen_at": {"type": "string", "format": "date-time"},
+    "freeze_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "facets": {
       "type": "array",
       "minItems": 1,
@@ -32,4 +34,3 @@
   },
   "additionalProperties": true
 }
-

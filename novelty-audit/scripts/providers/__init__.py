@@ -13,3 +13,5 @@ PROVIDERS = {
     "crossref": CrossrefProvider,
 }
 
+# Crossref is reserved for DOI and metadata verification, not primary semantic retrieval.
+SEARCH_PROVIDERS = {name: provider for name, provider in PROVIDERS.items() if name != "crossref"}

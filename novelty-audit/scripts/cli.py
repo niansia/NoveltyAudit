@@ -13,9 +13,21 @@ from composition import criticality_sensitivity, solve_mps
 from deduplicate import deduplicate
 from export_report import export
 from normalize_paper import normalize_many
-from providers import PROVIDERS
+from orchestrate_search import run_search_plan
+from providers import SEARCH_PROVIDERS
+from providers.base import ProviderError
 from resolve_dates import apply_cutoff_many
+from snapshot_diff import diff_reports
 from validate_output import validate_report
+from verify_citations import verify_records
+
+
+EXIT_COMPLETE = 0
+EXIT_PARTIAL = 10
+EXIT_NO_SEARCHABLE_CLAIM = 20
+EXIT_ALL_PROVIDERS_FAILED = 30
+EXIT_EVIDENCE_VALIDATION_FAILED = 40
+EXIT_CONFIG_ERROR = 50
 
 
 def read_json(path: str) -> Any:
@@ -38,11 +50,39 @@ def records(value: Any) -> list[dict[str, Any]]:
 
 
 def command_search(args: argparse.Namespace) -> int:
-    provider_class = PROVIDERS[args.provider]
+    provider_class = SEARCH_PROVIDERS[args.provider]
     provider = provider_class()
-    result = provider.search(args.query, before=args.before, limit=args.limit)
-    write_json(args.output, {"provider": provider.name, "query": args.query, "before": args.before, "papers": result})
-    return 0
+    try:
+        result = provider.search(args.query, before=args.before, limit=args.limit)
+    except ProviderError as error:
+        message = str(error)
+        if "HTTP 429" in message:
+            error_code = "RATE_LIMIT"
+        elif any(value in message for value in ("HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")):
+            error_code = "HTTP_5XX"
+        elif "Timeout" in message or "URLError" in message:
+            error_code = "TIMEOUT"
+        elif "JSONDecodeError" in message:
+            error_code = "MALFORMED_RESPONSE"
+        else:
+            error_code = "PROVIDER_UNAVAILABLE"
+        write_json(args.output, {
+            "status": "FAILED", "error_code": error_code, "provider": provider.name,
+            "before": args.before, "papers": [], "error": message,
+        })
+        return EXIT_ALL_PROVIDERS_FAILED
+    write_json(args.output, {"status": "COMPLETE", "error_code": None, "provider": provider.name, "query": args.query, "before": args.before, "papers": result})
+    return EXIT_COMPLETE
+
+
+def command_search_plan(args: argparse.Namespace) -> int:
+    result = run_search_plan(read_json(args.input))
+    write_json(args.output, result)
+    if result["status"] == "FAILED":
+        return EXIT_ALL_PROVIDERS_FAILED
+    if result["status"] == "PARTIAL":
+        return EXIT_PARTIAL
+    return EXIT_COMPLETE
 
 
 def command_normalize(args: argparse.Namespace) -> int:
@@ -58,6 +98,28 @@ def command_dedupe(args: argparse.Namespace) -> int:
 def command_dates(args: argparse.Namespace) -> int:
     write_json(args.output, apply_cutoff_many(records(read_json(args.input)), args.cutoff, strict=not args.non_strict))
     return 0
+
+
+def command_verify_citations(args: argparse.Namespace) -> int:
+    payload = read_json(args.input)
+    verified, status = verify_records(records(payload))
+    if isinstance(payload, dict) and isinstance(payload.get("papers"), list):
+        payload = dict(payload)
+        payload["papers"] = verified
+        payload["citation_validation_status"] = status
+    else:
+        payload = {"status": status, "papers": verified}
+    write_json(args.output, payload)
+    if status == "PARTIAL":
+        return EXIT_PARTIAL
+    if status == "FAILED":
+        return EXIT_EVIDENCE_VALIDATION_FAILED
+    return EXIT_COMPLETE
+
+
+def command_snapshot_diff(args: argparse.Namespace) -> int:
+    write_json(args.output, diff_reports(read_json(args.before), read_json(args.after)))
+    return EXIT_COMPLETE
 
 
 def command_mps(args: argparse.Namespace) -> int:
@@ -81,7 +143,7 @@ def command_validate(args: argparse.Namespace) -> int:
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
-        return 1
+        return EXIT_EVIDENCE_VALIDATION_FAILED
     print("NoveltyAudit report invariants: OK")
     return 0
 
@@ -92,16 +154,24 @@ def command_export(args: argparse.Namespace) -> int:
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="NoveltyAudit deterministic helpers")
+    root = argparse.ArgumentParser(
+        description="NoveltyAudit deterministic scholarly-literature reconnaissance helpers",
+        epilog="Not patentability, non-obviousness, freedom-to-operate, or legal advice. Exit codes: 0 complete, 10 partial, 20 no searchable claim, 30 all providers failed, 40 evidence validation failed, 50 config or credential error.",
+    )
     sub = root.add_subparsers(dest="command", required=True)
 
     search = sub.add_parser("search", help="search one scholarly provider")
-    search.add_argument("--provider", choices=sorted(PROVIDERS), required=True)
+    search.add_argument("--provider", choices=sorted(SEARCH_PROVIDERS), required=True)
     search.add_argument("--query", required=True)
     search.add_argument("--before")
     search.add_argument("--limit", type=int, default=25)
     search.add_argument("--output", required=True)
     search.set_defaults(func=command_search)
+
+    search_plan = sub.add_parser("search-plan", help="run canonical queries across providers with fallback")
+    search_plan.add_argument("--input", required=True)
+    search_plan.add_argument("--output", required=True)
+    search_plan.set_defaults(func=command_search_plan)
 
     normalize = sub.add_parser("normalize", help="normalize scholarly records")
     normalize.add_argument("--input", required=True)
@@ -120,6 +190,17 @@ def parser() -> argparse.ArgumentParser:
     dates.add_argument("--cutoff", required=True)
     dates.add_argument("--non-strict", action="store_true")
     dates.set_defaults(func=command_dates)
+
+    citations = sub.add_parser("verify-citations", help="resolve DOI and arXiv IDs independently")
+    citations.add_argument("--input", required=True)
+    citations.add_argument("--output", required=True)
+    citations.set_defaults(func=command_verify_citations)
+
+    snapshot = sub.add_parser("snapshot-diff", help="separate literature changes from verdict changes")
+    snapshot.add_argument("--before", required=True)
+    snapshot.add_argument("--after", required=True)
+    snapshot.add_argument("--output", required=True)
+    snapshot.set_defaults(func=command_snapshot_diff)
 
     mps = sub.add_parser("mps", help="solve evidence-bound Minimal Prior Sets")
     mps.add_argument("--input", required=True)
@@ -147,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
         return int(args.func(args))
     except Exception as error:
         print(f"ERROR: {error}", file=sys.stderr)
-        return 2
+        return EXIT_CONFIG_ERROR
 
 
 if __name__ == "__main__":
