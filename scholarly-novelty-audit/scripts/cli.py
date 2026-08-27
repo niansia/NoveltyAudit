@@ -20,6 +20,7 @@ from normalize_paper import normalize_many
 from orchestrate_search import run_search_plan
 from providers import SEARCH_PROVIDERS
 from providers.base import ProviderError
+from report_assembly import evaluate_report_attempt
 from resolve_dates import apply_cutoff_many
 from snapshot_diff import diff_reports
 from validate_output import graph_expansion_gap_marker, validate_report
@@ -242,6 +243,20 @@ def command_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_report_attempt(args: argparse.Namespace) -> int:
+    state_path = Path(args.state)
+    previous_state = read_json(args.state) if state_path.exists() else None
+    result = evaluate_report_attempt(
+        read_json(args.input), max_attempts=args.max_attempts, previous_state=previous_state,
+    )
+    write_json(args.state, result)
+    if result["status"] == "COMPLETE":
+        return EXIT_COMPLETE
+    if result["status"] == "PARTIAL":
+        return EXIT_PARTIAL
+    return EXIT_EVIDENCE_VALIDATION_FAILED
+
+
 def command_export(args: argparse.Namespace) -> int:
     export(read_json(args.input), args.output, args.format)
     return 0
@@ -335,6 +350,12 @@ def parser() -> argparse.ArgumentParser:
     validate = sub.add_parser("validate", help="validate report invariants")
     validate.add_argument("--input", required=True)
     validate.set_defaults(func=command_validate)
+
+    report_attempt = sub.add_parser("report-attempt", help="gate one host-agent report attempt and record retry exhaustion")
+    report_attempt.add_argument("--input", required=True)
+    report_attempt.add_argument("--max-attempts", type=int, default=3)
+    report_attempt.add_argument("--state", required=True)
+    report_attempt.set_defaults(func=command_report_attempt)
 
     export_parser = sub.add_parser("export", help="render a report")
     export_parser.add_argument("--input", required=True)

@@ -905,6 +905,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         new_ids = {str(value) for value in expansion.get("new_paper_ids") or []}
         if not expansion_id:
             errors.append(f"graph expansion {index} lacks expansion_id")
+        if expansion.get("provider_cutoff_applied") is not False:
+            errors.append(f"graph expansion {expansion_id} must not apply a provider-side cutoff")
+        if expansion.get("cutoff") and expansion.get("temporal_recall_backstop") is not True:
+            errors.append(f"historical graph expansion {expansion_id} must use an unfiltered temporal recall backstop")
+        if not expansion.get("cutoff") and expansion.get("temporal_recall_backstop") is not False:
+            errors.append(f"non-historical graph expansion {expansion_id} cannot claim a temporal recall backstop")
         if len(endpoint_ids) != 2 or not endpoint_ids <= candidate_ids:
             errors.append(f"graph expansion {expansion_id} endpoints must be two canonical candidates")
         if not (discovered_ids | bridge_candidate_ids | new_ids) <= candidate_ids:

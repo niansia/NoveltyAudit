@@ -4,7 +4,7 @@ Coverage alone does not establish that combining papers was historically natural
 
 ## Discovery and promotion
 
-First discover graph candidates deterministically: direct citation, co-citation by a third paper, or a shared citation neighborhood. Enforce the same cutoff on the bridge source.
+First discover graph candidates deterministically: direct citation, co-citation by a third paper, or a shared citation neighborhood. Retrieve graph neighborhoods without provider-side date filtering, then enforce the cutoff with the local earliest-public-date resolver. This avoids losing an eligible preprint behind a later provider publication date and keeps post-cutoff sources available for landscape review.
 
 Absence of a bridge is interpretable only after a complete graph expansion. If any backward or forward call returns its full requested limit, record `possibly_truncated=true`, set the expansion to `PARTIAL` with `LIMIT_REACHED`, disclose the pair-specific search gap, and use `INCONCLUSIVE`. Do not convert “none found within the budget” into `FRAGMENTED_PRECEDENT`.
 

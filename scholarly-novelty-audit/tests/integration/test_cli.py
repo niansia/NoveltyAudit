@@ -18,6 +18,30 @@ def test_cli_validates_and_exports(valid_report, tmp_path):
     assert target.exists()
 
 
+def test_cli_records_terminal_partial_when_report_retries_are_exhausted(valid_report, tmp_path):
+    root = Path(__file__).resolve().parents[2]
+    cli = root / "scripts" / "cli.py"
+    source = tmp_path / "invalid-report.json"
+    state = tmp_path / "assembly-state.json"
+    valid_report.pop("claim_map")
+    source.write_text(json.dumps(valid_report), encoding="utf-8")
+    command = [
+        sys.executable, str(cli), "report-attempt", "--input", str(source),
+        "--max-attempts", "3", "--state", str(state),
+    ]
+    first = subprocess.run(command, capture_output=True, text=True)
+    second = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert first.returncode == 40, first.stderr
+    assert second.returncode == 40, second.stderr
+    assert result.returncode == 10, result.stderr
+    payload = json.loads(state.read_text(encoding="utf-8"))
+    assert payload["status"] == "PARTIAL"
+    assert payload["retry_exhausted"] is True
+    assert payload["conclusion_cap"] == "INCONCLUSIVE"
+    assert [item["attempt"] for item in payload["attempts"]] == [1, 2, 3]
+
+
 def test_mps_cli_discloses_bound_and_larger_combination_limit(tmp_path):
     root = Path(__file__).resolve().parents[2]
     cli = root / "scripts" / "cli.py"

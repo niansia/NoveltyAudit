@@ -121,6 +121,8 @@
         "provider": "openalex",
         "paper_ids": ["A", "B"],
         "cutoff": "2025-09-18",
+        "temporal_recall_backstop": true,
+        "provider_cutoff_applied": false,
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [

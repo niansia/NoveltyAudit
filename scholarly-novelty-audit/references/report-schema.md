@@ -19,6 +19,6 @@ Every adverse report-level claim should link to stable evidence IDs. Use empty a
 
 For every recomputed MPS containing two or more papers, `search.graph_expansions` must include a `COMPLETE` record for every endpoint pair. Missing and `PARTIAL` pairs require `classification=INCONCLUSIVE`, `novelty_risk=INCONCLUSIVE`, and the exact lexicographically ordered gap marker `GRAPH_EXPANSION_INCOMPLETE:<paper-a>:<paper-b>`.
 
-Every graph-expansion call records `limit` and `possibly_truncated`. `returned_count >= limit` requires `possibly_truncated=true`, `partial_reasons` must contain `LIMIT_REACHED`, and the expansion cannot be `COMPLETE`. Historical searches also require at least one SearchRun with `temporal_recall_backstop=true` and `provider_cutoff_applied=false`.
+Every graph-expansion call records `limit` and `possibly_truncated`. `returned_count >= limit` requires `possibly_truncated=true`, `partial_reasons` must contain `LIMIT_REACHED`, and the expansion cannot be `COMPLETE`. Every graph expansion records `provider_cutoff_applied=false`; historical expansions additionally require `temporal_recall_backstop=true` because final eligibility is resolved locally. Historical ordinary searches also require at least one SearchRun with the same backstop pairing.
 
 Breaking schema changes and field migrations are recorded in [schema migrations](schema-migrations.md).

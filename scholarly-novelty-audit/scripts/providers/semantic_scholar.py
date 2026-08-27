@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ScholarProvider, SearchResult, request_json
+from providers.base import ProviderError, ScholarProvider, SearchResult, request_json
 
 
 FIELDS = "paperId,title,abstract,authors,year,venue,url,externalIds,citationCount,publicationDate,openAccessPdf,referenceCount"
@@ -57,12 +57,40 @@ class SemanticScholarProvider(ScholarProvider):
         return self._convert(data)
 
     def _edges(self, identifier: str, kind: str, before: str | None, limit: int) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {"fields": EDGE_FIELDS if kind == "citations" else FIELDS, "limit": min(max(limit, 1), 1000)}
-        if before:
-            params["publicationDateOrYear"] = f":{before}"
-        data = request_json(f"{self.endpoint}/paper/{quote(identifier, safe='')}/{kind}", params=params, headers=self._headers())
         key = "citingPaper" if kind == "citations" else "citedPaper"
-        papers = [self._convert(edge[key]) for edge in data.get("data") or [] if edge.get(key)]
+        papers: list[dict[str, Any]] = []
+        offset = 0
+        seen_offsets: set[int] = set()
+        page_budget = max(limit + 1, 2)
+        next_offset: Any | None = 0
+        for _ in range(page_budget):
+            if next_offset is None or len(papers) >= limit:
+                break
+            try:
+                offset = int(next_offset)
+            except (TypeError, ValueError) as error:
+                raise ProviderError("Semantic Scholar returned an invalid graph pagination offset") from error
+            if offset < 0:
+                raise ProviderError("Semantic Scholar returned a negative graph pagination offset")
+            if offset in seen_offsets:
+                raise ProviderError("Semantic Scholar graph pagination repeated an offset")
+            seen_offsets.add(offset)
+            params: dict[str, Any] = {
+                "fields": EDGE_FIELDS if kind == "citations" else FIELDS,
+                "limit": min(max(limit - len(papers), 1), 1000),
+                "offset": offset,
+            }
+            if before:
+                params["publicationDateOrYear"] = f":{before}"
+            data = request_json(
+                f"{self.endpoint}/paper/{quote(identifier, safe='')}/{kind}",
+                params=params,
+                headers=self._headers(),
+            )
+            papers.extend(self._convert(edge[key]) for edge in data.get("data") or [] if edge.get(key))
+            next_offset = data.get("next")
+        if next_offset is not None and len(papers) < limit:
+            raise ProviderError("Semantic Scholar graph pagination exceeded its safety budget")
         return papers[:limit]
 
     def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:

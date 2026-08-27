@@ -13,6 +13,8 @@ Version 0.3.1 removes awareness inference and makes Tier-2 acquisition independe
 - Require every human MPS result to state `K ≤ 3` and disclose that a negative bounded result says nothing about larger combinations.
 - Require `temporal_recall_backstop` and `provider_cutoff_applied` on SearchRun records; at least one historical query run must bypass provider cutoff pushdown.
 - Add graph-expansion `partial_reasons`, per-call limits, and `possibly_truncated`; a call returning its full limit is not complete negative bridge evidence.
+- Require graph-expansion `temporal_recall_backstop` and `provider_cutoff_applied`; historical graph retrieval is broad and local earliest-public-date resolution is the final eligibility gate.
+- Add the stateful `report-attempt` assembly contract; invalid final attempts terminate as `PARTIAL` with an `INCONCLUSIVE` conclusion cap.
 
 Do not relabel old `OVERLOOKED` values mechanically as knowledge claims. Recompute status solely from the supplied bibliography; use `BIBLIOGRAPHY_UNAVAILABLE` when it was not supplied. Old Tier-2 spans without preserved source acquisition cannot be upgraded—reacquire the source or downgrade the evidence.
 

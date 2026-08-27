@@ -144,7 +144,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["expansion_id", "status", "partial_reasons", "provider", "paper_ids", "cutoff", "limit_per_call", "anchor_selection", "calls", "failures", "bridge_candidate_ids", "discovered_paper_ids", "new_paper_ids"],
+            "required": ["expansion_id", "status", "partial_reasons", "provider", "paper_ids", "cutoff", "temporal_recall_backstop", "provider_cutoff_applied", "limit_per_call", "anchor_selection", "calls", "failures", "bridge_candidate_ids", "discovered_paper_ids", "new_paper_ids"],
             "properties": {
               "expansion_id": {"type": "string", "minLength": 1},
               "status": {"enum": ["COMPLETE", "PARTIAL"]},
@@ -152,6 +152,8 @@
               "provider": {"enum": ["openalex", "semantic-scholar"]},
               "paper_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2, "uniqueItems": true},
               "cutoff": {"type": ["string", "null"], "format": "date"},
+              "temporal_recall_backstop": {"type": "boolean"},
+              "provider_cutoff_applied": {"type": "boolean"},
               "limit_per_call": {"type": "integer", "minimum": 1, "maximum": 1000},
               "anchor_selection": {"enum": ["LOWER_CITATION_COUNT", "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH"]},
               "calls": {"type": "array", "items": {"type": "object", "required": ["direction", "anchor_paper_id", "returned_count", "limit", "possibly_truncated"], "properties": {"direction": {"enum": ["BACKWARD", "FORWARD"]}, "anchor_paper_id": {"type": "string"}, "returned_count": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 1000}, "possibly_truncated": {"type": "boolean"}}}},

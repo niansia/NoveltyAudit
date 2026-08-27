@@ -448,6 +448,16 @@ def test_temporal_backstop_cannot_claim_provider_cutoff_was_applied(valid_report
     assert any("unfiltered temporal recall backstop" in error for error in errors)
 
 
+def test_historical_graph_expansion_requires_local_temporal_backstop(valid_report):
+    report = deepcopy(valid_report)
+    expansion = report["search"]["graph_expansions"][0]
+    expansion["temporal_recall_backstop"] = False
+    expansion["provider_cutoff_applied"] = True
+    errors = validate_report(report)
+    assert any("must not apply a provider-side cutoff" in error for error in errors)
+    assert any("must use an unfiltered temporal recall backstop" in error for error in errors)
+
+
 def test_arxiv_filtered_page_cannot_fake_no_new_results_saturation(valid_report):
     report = deepcopy(valid_report)
     run = next(run for run in report["search"]["query_runs"] if run["provider"] == "arxiv")
@@ -509,6 +519,8 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
         "provider": "openalex",
         "paper_ids": ["A", "B"],
         "cutoff": "2025-09-18",
+        "temporal_recall_backstop": True,
+        "provider_cutoff_applied": False,
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [

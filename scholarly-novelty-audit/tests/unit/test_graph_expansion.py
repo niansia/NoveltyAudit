@@ -45,9 +45,11 @@ def test_expansion_actively_fetches_graph_and_merges_bridge_source():
         [paper("A", "W-A", 10), paper("B", "W-B", 100)],
         "A", "B", provider, before="2025-01-01", limit=25,
     )
-    assert provider.reference_calls == [("W-A", "2025-01-01", 25), ("W-B", "2025-01-01", 25)]
-    assert provider.citation_calls == [("W-A", "2025-01-01", 25)]
+    assert provider.reference_calls == [("W-A", None, 25), ("W-B", None, 25)]
+    assert provider.citation_calls == [("W-A", None, 25)]
     assert result["anchor_selection"] == "LOWER_CITATION_COUNT"
+    assert result["temporal_recall_backstop"] is True
+    assert result["provider_cutoff_applied"] is False
     assert result["status"] == "COMPLETE"
     assert result["partial_reasons"] == []
     assert result["bridge_candidate_ids"] == ["C"]
@@ -66,6 +68,20 @@ def test_missing_citation_count_expands_both_forward_directions():
     )
     assert result["anchor_selection"] == "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH"
     assert [call[0] for call in provider.citation_calls] == ["W-A", "W-B"]
+
+
+def test_graph_backstop_retains_post_cutoff_candidate_for_landscape_review():
+    provider = FakeGraphProvider()
+    provider.citations = lambda paper_id, before=None, limit=100: [
+        paper("L", "W-L", 3, references=["W-A", "W-B"], date="2026-01-01")
+    ]
+    result = expand_graph(
+        [paper("A", "W-A", 10), paper("B", "W-B", 100)],
+        "A", "B", provider, before="2025-01-01", limit=25,
+    )
+    landscape_source = next(item for item in result["papers"] if item["id"] == "L")
+    assert landscape_source["cutoff_status"] == "POST_CUTOFF"
+    assert result["bridge_candidate_ids"] == ["L"]
 
 
 def test_full_call_budget_is_partial_even_without_provider_failure():

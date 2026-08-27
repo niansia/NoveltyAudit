@@ -104,6 +104,9 @@ python scholarly-novelty-audit/scripts/cli.py bridge \
 
 python scholarly-novelty-audit/scripts/cli.py verify-citations \
   --input run/report.json --output run/report.verified.json
+python scholarly-novelty-audit/scripts/cli.py report-attempt \
+  --input run/report.verified.json --max-attempts 3 \
+  --state run/report-assembly.json
 python scholarly-novelty-audit/scripts/cli.py validate --input run/report.verified.json
 python scholarly-novelty-audit/scripts/cli.py export \
   --input run/report.verified.json --format html --output run/report.html
@@ -111,13 +114,15 @@ python scholarly-novelty-audit/scripts/cli.py export \
 
 The bridge threshold above is only an example. Use a documented, field-calibrated value; omit it when none is defensible, in which case co-citation remains `UNASSESSED` and cannot strengthen the verdict.
 
+The host agent gets at most three structured-report attempts. Reusing the same assembly state appends a sequential hash and validation history, so exhaustion cannot be asserted without the preceding attempts. `report-attempt` returns `RETRY_REQUIRED` with exact validation failures before the budget is exhausted; an invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit.
+
 Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. arXiv offsets advance by raw API entries, never by the smaller post-cutoff eligible set. At least one deterministic query-family run bypasses aggressive provider-side date filtering as a temporal-recall backstop; the earliest-public-date resolver remains the final eligibility gate. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Protocol Coverage deterministically rather than silently becoming evidence of novelty. `BROAD` means broad execution of this bounded protocol; it is not demonstrated recall of all relevant literature.
 
 The MPS search bound is always `K ≤ 3`. “None found” means no qualifying evidence-bound set of three or fewer papers was found; it does not establish that no larger combination exists.
 
 Every endpoint pair in every recomputed multi-paper MPS must have a `COMPLETE` citation-graph expansion record. If any pair is missing or `PARTIAL`, the validator permits only `INCONCLUSIVE` and requires the deterministic search-gap marker `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>`. Consequently, `FRAGMENTED_PRECEDENT` means the relevant pairs were actually expanded and no qualifying historical bridge was verified—not merely that no bridge happened to be present in the initial candidate pool.
 
-A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. Therefore “no bridge” means no bridge was verified within the recorded bounded expansion, and cannot silently support `FRAGMENTED_PRECEDENT` when the citation neighborhood may continue beyond the budget.
+A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility. Therefore “no bridge” means no bridge was verified within a complete recorded expansion, and cannot silently support `FRAGMENTED_PRECEDENT` when the citation neighborhood may continue beyond the budget.
 
 ## Verdicts
 
@@ -135,7 +140,7 @@ NoveltyAudit performs scholarly-literature reconnaissance only. It does not prov
 ## CLI exit codes
 
 - `0`: complete;
-- `10`: partial completion after a backend failure;
+- `10`: partial completion after a backend failure or exhausted report retry budget;
 - `20`: no searchable claim could be extracted;
 - `30`: all configured scholarly providers failed;
 - `40`: evidence or report validation failed;

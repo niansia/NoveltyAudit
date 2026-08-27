@@ -78,7 +78,11 @@ def expand_graph(
 
     for endpoint_id in (paper_a_id, paper_b_id):
         try:
-            results = provider.references(provider_ids[endpoint_id], before=before, limit=limit)
+            # Retrieve a wider graph neighborhood and make the shared local
+            # earliest-public-date resolver the historical eligibility gate.
+            # Provider publication dates can otherwise hide an eligible preprint
+            # whose later journal version falls after the cutoff.
+            results = provider.references(provider_ids[endpoint_id], before=None, limit=limit)
             record_call("BACKWARD", endpoint_id, results)
             fetched.extend(results)
         except (ProviderError, NotImplementedError) as error:
@@ -90,7 +94,7 @@ def expand_graph(
         other_id = paper_b_id if anchor_id == paper_a_id else paper_a_id
         other_forms = _forms(provider_ids[other_id]) | _forms(other_id)
         try:
-            results = provider.citations(provider_ids[anchor_id], before=before, limit=limit)
+            results = provider.citations(provider_ids[anchor_id], before=None, limit=limit)
             record_call("FORWARD", anchor_id, results)
             for candidate in results:
                 reference_forms = {form for value in candidate.get("references") or [] for form in _forms(value)}
@@ -133,6 +137,8 @@ def expand_graph(
         "paper_ids": [paper_a_id, paper_b_id],
         "provider_ids": provider_ids,
         "cutoff": before,
+        "temporal_recall_backstop": bool(before),
+        "provider_cutoff_applied": False,
         "limit_per_call": limit,
         "anchor_selection": selection_reason,
         "calls": calls,

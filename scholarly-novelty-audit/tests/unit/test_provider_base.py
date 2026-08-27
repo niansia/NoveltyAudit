@@ -12,6 +12,16 @@ from providers.openalex import OpenAlexProvider
 from providers.semantic_scholar import SemanticScholarProvider
 
 
+def openalex_work(identifier):
+    return {
+        "id": f"https://openalex.org/{identifier}",
+        "display_name": f"Paper {identifier}",
+        "authorships": [],
+        "ids": {},
+        "referenced_works": [],
+    }
+
+
 def test_provider_error_redacts_query_and_api_key(monkeypatch):
     def fail(*args, **kwargs):
         raise HTTPError("https://api.example.test/works", 401, "bad", {}, None)
@@ -129,6 +139,97 @@ def test_semantic_scholar_citation_expansion_requests_local_references(monkeypat
     assert "references" in captured["fields"]
     assert captured["publicationDateOrYear"] == ":2025-01-01"
     assert papers[0]["references"] == ["A", "B"]
+
+
+def test_openalex_references_scans_past_underfull_cutoff_batch(monkeypatch):
+    provider = OpenAlexProvider()
+    reference_ids = [f"W{index}" for index in range(1, 151)]
+    monkeypatch.setattr(provider, "get_by_id", lambda _: {"references": reference_ids})
+    requests = []
+
+    def fake_request(*args, **kwargs):
+        params = kwargs["params"]
+        requests.append(params)
+        ids = params["filter"].split(",", 1)[0].removeprefix("openalex:").split("|")
+        eligible = ids[:-1] if len(requests) == 1 else ids
+        return {"results": [openalex_work(identifier) for identifier in eligible]}
+
+    monkeypatch.setattr(openalex_module, "request_json", fake_request)
+    papers = provider.references("W-ANCHOR", before="2025-01-01", limit=100)
+    assert len(papers) == 100
+    assert len(requests) == 2
+    assert "W101" in requests[1]["filter"]
+    assert all("to_publication_date:2025-01-01" in request["filter"] for request in requests)
+
+
+def test_openalex_references_exhausts_raw_ids_before_claiming_under_limit(monkeypatch):
+    provider = OpenAlexProvider()
+    reference_ids = [f"W{index}" for index in range(1, 151)]
+    monkeypatch.setattr(provider, "get_by_id", lambda _: {"references": reference_ids})
+    requests = []
+
+    def fake_request(*args, **kwargs):
+        requests.append(kwargs["params"])
+        results = [openalex_work(f"W{index}") for index in range(1, 100)] if len(requests) == 1 else []
+        return {"results": results}
+
+    monkeypatch.setattr(openalex_module, "request_json", fake_request)
+    papers = provider.references("W-ANCHOR", before="2025-01-01", limit=100)
+    assert len(papers) == 99
+    assert len(requests) == 2
+
+
+def test_openalex_citations_follow_cursor_until_exhausted(monkeypatch):
+    requests = []
+
+    def fake_request(*args, **kwargs):
+        cursor = kwargs["params"]["cursor"]
+        requests.append(cursor)
+        if cursor == "*":
+            return {"meta": {"next_cursor": "next-1"}, "results": [openalex_work("C1")]}
+        return {"meta": {"next_cursor": None}, "results": [openalex_work("C2")]}
+
+    monkeypatch.setattr(openalex_module, "request_json", fake_request)
+    papers = OpenAlexProvider().citations("W-A", limit=3)
+    assert [paper["id"] for paper in papers] == ["C1", "C2"]
+    assert requests == ["*", "next-1"]
+
+
+def test_openalex_repeated_citation_cursor_is_a_provider_failure(monkeypatch):
+    monkeypatch.setattr(openalex_module, "request_json", lambda *args, **kwargs: {
+        "meta": {"next_cursor": "*"}, "results": [],
+    })
+    with pytest.raises(base.ProviderError, match="repeated a cursor"):
+        OpenAlexProvider().citations("W-A", limit=2)
+
+
+def test_semantic_scholar_graph_edges_follow_next_offset(monkeypatch):
+    requests = []
+
+    def fake_request(*args, **kwargs):
+        params = kwargs["params"]
+        requests.append(params)
+        if params["offset"] == 0:
+            return {"next": 1, "data": [{"citedPaper": {"paperId": "R1", "title": "R1"}}]}
+        return {"data": [{"citedPaper": {"paperId": "R2", "title": "R2"}}]}
+
+    monkeypatch.setattr(s2_module, "request_json", fake_request)
+    papers = SemanticScholarProvider().references("A", before="2025-01-01", limit=3)
+    assert [paper["id"] for paper in papers] == ["R1", "R2"]
+    assert [request["offset"] for request in requests] == [0, 1]
+    assert all(request["publicationDateOrYear"] == ":2025-01-01" for request in requests)
+
+
+def test_semantic_scholar_repeated_graph_offset_is_a_provider_failure(monkeypatch):
+    monkeypatch.setattr(s2_module, "request_json", lambda *args, **kwargs: {"next": 0, "data": []})
+    with pytest.raises(base.ProviderError, match="repeated an offset"):
+        SemanticScholarProvider().citations("A", limit=2)
+
+
+def test_semantic_scholar_negative_graph_offset_is_a_provider_failure(monkeypatch):
+    monkeypatch.setattr(s2_module, "request_json", lambda *args, **kwargs: {"next": -1, "data": []})
+    with pytest.raises(base.ProviderError, match="negative graph pagination offset"):
+        SemanticScholarProvider().citations("A", limit=2)
 
 
 def test_crossref_preserves_month_precision():

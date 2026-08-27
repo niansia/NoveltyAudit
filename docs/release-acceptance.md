@@ -20,7 +20,7 @@ Required before recommending a public beta:
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.
 
-Most locally enforceable P0 gates are implemented in schema version 0.3.1 and guarded by offline adversarial tests. Remaining P0 work that needs a larger orchestration layer is tracked below.
+The locally enforceable P0 gates are implemented in schema version 0.3.1 and guarded by offline adversarial tests. Host-agent report assembly uses a fixed three-attempt gate; invalid final output becomes terminal `PARTIAL` with an `INCONCLUSIVE` conclusion cap.
 
 ## P1 — evidence that the product works
 
@@ -43,12 +43,10 @@ Required for a mature 1.0 product, not for an honest alpha/beta Skill:
 - A demonstrated hard-case feedback loop.
 - At least 20 licensed reviewer-grounded demos, three public failure cases, a before/after recovery story, report permalinks, and measured time-to-first-report.
 
-## Remaining public-beta blockers
+## Public-beta gate status
 
-1. End-to-end host-agent report assembly with schema-retry exhaustion represented as `PARTIAL`. Multi-provider candidate search, fallback, identifier verification, public Tier-2 acquisition, run manifests, snapshot hashing, and snapshot diffing are bundled, but model-output retry remains client-controlled.
-2. Clean-environment macOS and Linux install tests. CI covers Linux unit behavior, but installation timing and macOS have not been measured.
-
-These blockers must remain visible in the README and release notes until evidence closes them.
+- End-to-end host-agent report assembly now has a deterministic `report-attempt` contract: at most three attempts, exact validation feedback, and terminal `PARTIAL` plus `INCONCLUSIVE` when the budget is exhausted.
+- Clean runtime installation is now exercised from the distributable ZIP on both `ubuntu-latest` and `macos-latest`, including dependency installation timing and CLI startup. The first green GitHub Actions run is still required as external evidence before marking this gate passed; a workflow definition alone is not a test result.
 
 ## Blocks benchmark or performance claims
 

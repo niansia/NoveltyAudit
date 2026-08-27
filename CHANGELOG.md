@@ -13,6 +13,11 @@
 - Fixed arXiv traversal to advance by raw API entries after local cutoff filtering, preventing false no-new-results saturation and false `BROAD` coverage.
 - Made graph-expansion limit exhaustion a first-class partial state and added a deterministic unfiltered temporal-recall backstop query.
 - Preserved the canonical first version's provider ID during deduplication so real graph expansion cannot silently query a lower-provenance duplicate work ID.
+- Fixed OpenAlex backward expansion to exhaust raw reference IDs after cutoff filtering makes an early batch underfull, preventing false `COMPLETE` graph records.
+- Added paginated Semantic Scholar graph traversal and fail-closed cursor/offset guards for both graph providers.
+- Made every historical graph expansion an unfiltered temporal-recall backstop whose final eligibility is decided by the local earliest-public-date resolver.
+- Added a stateful three-attempt report assembly gate; sequential hashes and failures are retained, and exhausted invalid output terminates as `PARTIAL` plus `INCONCLUSIVE`.
+- Added clean runtime ZIP installation and CLI smoke tests on Linux and macOS CI runners.
 - Moved Agent Skills runtime compatibility to its specification-defined top-level frontmatter field.
 - Expanded the competitive landscape and added a market-category comparison.
 

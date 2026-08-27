@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ScholarProvider, SearchResult, request_json
+from providers.base import ProviderError, ScholarProvider, SearchResult, request_json
 
 
 class OpenAlexProvider(ScholarProvider):
@@ -78,7 +78,12 @@ class OpenAlexProvider(ScholarProvider):
     def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         reference_ids = self.get_by_id(paper_id).get("references") or []
         results: list[dict[str, Any]] = []
-        for start in range(0, min(len(reference_ids), limit), 100):
+        # Provider-side date filtering can make a raw-ID batch underfull. Keep
+        # scanning the known reference list until the eligible result budget is
+        # full or every raw reference ID has actually been examined.
+        for start in range(0, len(reference_ids), 100):
+            if len(results) >= limit:
+                break
             batch = reference_ids[start:start + 100]
             filter_value = f"openalex:{'|'.join(batch)}"
             if before:
@@ -93,7 +98,14 @@ class OpenAlexProvider(ScholarProvider):
     def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         cursor: str | None = "*"
-        while cursor and len(results) < limit:
+        seen_cursors: set[str] = set()
+        page_budget = max(limit + 1, 2)
+        for _ in range(page_budget):
+            if cursor is None or len(results) >= limit:
+                break
+            if cursor in seen_cursors:
+                raise ProviderError("OpenAlex citation pagination repeated a cursor")
+            seen_cursors.add(cursor)
             filter_value = f"cites:{paper_id}"
             if before:
                 filter_value += f",to_publication_date:{before}"
@@ -103,5 +115,7 @@ class OpenAlexProvider(ScholarProvider):
             })
             results.extend(self._convert(work) for work in data.get("results") or [])
             next_cursor = (data.get("meta") or {}).get("next_cursor")
-            cursor = next_cursor if next_cursor and next_cursor != cursor else None
+            cursor = str(next_cursor) if next_cursor else None
+        if cursor is not None and len(results) < limit:
+            raise ProviderError("OpenAlex citation pagination exceeded its safety budget")
         return results[:limit]
