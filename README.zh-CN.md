@@ -27,13 +27,15 @@ NoveltyAudit 是一个证据优先、组合式、严格遵守时间边界的学�
 | 额外付费 LLM API key | 否 |
 | OpenAlex／Semantic Scholar API key | 可选 |
 
-### 一行安装
+### 一行安装 skill
 
-如果已有 Node.js 和 `npx`，开源 `skills` CLI 可以识别 repo 中的 skill：
+如果已有 Node.js 和 `npx`，开源 [skills CLI](https://skills.sh/docs/cli) 可以识别 repo 中的 skill，并安装到支持的 agent：
 
 ```bash
 npx skills add niansia/NoveltyAudit --skill scholarly-novelty-audit --global
 ```
+
+skills CLI 只安装 skill package，不会安装 Python dependencies。首次使用时，NoveltyAudit 仍会确认 Python 3.10+，并在宿主允许安装 dependencies 时安装 Python requirements。
 
 这个第三方 installer 默认会记录匿名安装 telemetry；设置 `DISABLE_TELEMETRY=1` 可以退出。如果不想使用 installer，请采用下面的手动方式。
 

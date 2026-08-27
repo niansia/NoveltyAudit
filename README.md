@@ -34,13 +34,15 @@ The result is not a novelty score. It is an auditable claim map, historically el
 | Separate paid LLM API key | No |
 | OpenAlex or Semantic Scholar API key | Optional |
 
-### One-line install
+### One-line skill install
 
-If Node.js and `npx` are available, the open-source `skills` CLI detects the nested skill and installs it for a supported agent:
+If Node.js and `npx` are available, the open-source [skills CLI](https://skills.sh/docs/cli) discovers the nested skill and installs it for supported agents:
 
 ```bash
 npx skills add niansia/NoveltyAudit --skill scholarly-novelty-audit --global
 ```
+
+The skills CLI installs the skill package; it does not install Python dependencies. On first use, NoveltyAudit will still verify Python 3.10+ and install its Python requirements when the host permits dependency installation.
 
 The third-party installer records anonymous install telemetry by default; set `DISABLE_TELEMETRY=1` to opt out. Use the manual path below if you do not want to use the installer.
 
