@@ -9,6 +9,7 @@
 - Disabled accidental setuptools package discovery and documented clean `git archive` release packaging.
 - Made CLI validation schema-first, then semantic, and closed taxonomy plus omitted-graph-bridge downgrade bypasses.
 - Added provider cutoff pushdown, bounded multi-page saturation, independently reproduced bibliography mappings, calibrated co-citation base-rate guards, and non-adverse `LANDSCAPE_BRIDGE` reporting.
+- Added active `expand-graph` backward/forward citation chasing so third-paper bridge sources can enter the candidate pool instead of needing to appear in claim-similarity search.
 
 ## 0.2.0 - 2026-08-27
 

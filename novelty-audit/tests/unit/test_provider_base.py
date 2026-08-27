@@ -90,6 +90,18 @@ def test_semantic_scholar_preserves_total_and_next(monkeypatch):
     assert page.truncated is True
 
 
+def test_semantic_scholar_citation_expansion_requests_local_references(monkeypatch):
+    captured = {}
+    def fake_request(*args, **kwargs):
+        captured.update(kwargs.get("params") or {})
+        return {"data": [{"citingPaper": {"paperId": "C", "title": "C", "references": [{"paperId": "A"}, {"paperId": "B"}]}}]}
+    monkeypatch.setattr(s2_module, "request_json", fake_request)
+    papers = SemanticScholarProvider().citations("A", before="2025-01-01", limit=20)
+    assert "references" in captured["fields"]
+    assert captured["publicationDateOrYear"] == ":2025-01-01"
+    assert papers[0]["references"] == ["A", "B"]
+
+
 def test_crossref_preserves_month_precision():
     value, source = CrossrefProvider._date_parts({"published-online": {"date-parts": [[2025, 1]]}, "issued": {"date-parts": [[2025, 3, 15]]}})
     assert value == "2025-01"

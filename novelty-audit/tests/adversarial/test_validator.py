@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from validate_output import claim_map_hash, validate_report
+from validate_output import candidate_snapshot_hash, claim_map_hash, validate_report
 
 
 def refreeze(report):
@@ -394,3 +394,33 @@ def test_title_author_bibliography_mapping_is_independently_reproduced(valid_rep
     report = deepcopy(valid_report)
     report["author_bibliography"]["entries"][0]["raw_entry"] = "Marine biology field methods (2023)"
     assert any("TITLE_AUTHOR match is not independently reproduced" in error for error in validate_report(report))
+
+
+def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
+    report = deepcopy(valid_report)
+    expansion_id = "EXPAND-GRAPH:openalex:A:B"
+    report["papers"][2]["found_by_query_ids"].append(expansion_id)
+    report["search"]["graph_expansions"] = [{
+        "expansion_id": expansion_id,
+        "status": "COMPLETE",
+        "provider": "openalex",
+        "paper_ids": ["A", "B"],
+        "cutoff": "2025-09-18",
+        "limit_per_call": 100,
+        "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
+        "calls": [
+            {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0},
+            {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0},
+            {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1},
+            {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1},
+        ],
+        "failures": [],
+        "bridge_candidate_ids": ["C"],
+        "discovered_paper_ids": ["C"],
+        "new_paper_ids": [],
+    }]
+    report["run_manifest"]["candidate_snapshot_hash"] = candidate_snapshot_hash(report["papers"])
+    assert validate_report(report) == []
+
+    report["search"].pop("graph_expansions")
+    assert any("unknown discovery query IDs" in error for error in validate_report(report))

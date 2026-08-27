@@ -20,7 +20,7 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - DOI／arXiv／標題正規化、preprint 與正式版本去重。
 - 最早公開日解析與嚴格 cutoff 狀態。
 - 1–3 篇 evidence-bound Minimal Prior Set 求解。
-- citation graph bridge discovery、高引文 base-rate 防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
+- 主動 backward/forward citation expansion、citation graph bridge discovery、高引文 base-rate 防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
 - 具版本的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。

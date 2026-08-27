@@ -15,6 +15,7 @@ Required before recommending a public beta:
 - Co-citation cannot strengthen a verdict without complete citation counts and a documented calibrated threshold; post-cutoff graph routes remain visible only as non-adverse landscape bridges.
 - Verdict, Novelty Risk, Search Coverage, and Evidence Confidence obey explicit consistency rules.
 - Query IDs, discovery routes, provider page history, saturation stop reasons, failures, truncation, search gaps, evidence timestamps, and machine-readable status are preserved.
+- Citation expansion actively calls provider reference and citation APIs, merges third-paper bridge sources into the candidate pool, and records partial expansion failures.
 - Markdown and HTML contain no novelty percentages, uncalibrated decimals, internal ranking features, raw machine JSON, or unescaped scholarly content.
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.

@@ -13,6 +13,7 @@ from providers.base import ScholarProvider, SearchResult, request_json
 class OpenAlexProvider(ScholarProvider):
     name = "openalex"
     endpoint = "https://api.openalex.org/works"
+    select_fields = "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"
 
     def __init__(self, corpus: str | None = None):
         self.corpus = corpus or os.getenv("OPENALEX_CORPUS", "all")
@@ -57,7 +58,7 @@ class OpenAlexProvider(ScholarProvider):
     def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None) -> SearchResult:
         per_page = min(max(limit, 1), 100)
         page_number = int(page_token or 1)
-        params = self._params() | {"search": query, "per_page": per_page, "page": page_number, "corpus": self.corpus, "select": "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"}
+        params = self._params() | {"search": query, "per_page": per_page, "page": page_number, "corpus": self.corpus, "select": self.select_fields}
         if before:
             params["filter"] = f"to_publication_date:{before}"
         data = request_json(self.endpoint, params=params)
@@ -74,7 +75,33 @@ class OpenAlexProvider(ScholarProvider):
         data = request_json(f"{self.endpoint}/{quote(identifier)}", params=self._params())
         return self._convert(data)
 
-    def citations(self, paper_id: str, *, before: str | None = None) -> list[dict[str, Any]]:
-        params = self._params() | {"filter": f"cites:{paper_id}", "per_page": 100, "corpus": self.corpus}
-        data = request_json(self.endpoint, params=params)
-        return [self._convert(work) for work in data.get("results") or []]
+    def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        reference_ids = self.get_by_id(paper_id).get("references") or []
+        results: list[dict[str, Any]] = []
+        for start in range(0, min(len(reference_ids), limit), 100):
+            batch = reference_ids[start:start + 100]
+            filter_value = f"openalex:{'|'.join(batch)}"
+            if before:
+                filter_value += f",to_publication_date:{before}"
+            data = request_json(self.endpoint, params=self._params() | {
+                "filter": filter_value, "per_page": len(batch), "corpus": self.corpus,
+                "select": self.select_fields,
+            })
+            results.extend(self._convert(work) for work in data.get("results") or [])
+        return results[:limit]
+
+    def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        cursor: str | None = "*"
+        while cursor and len(results) < limit:
+            filter_value = f"cites:{paper_id}"
+            if before:
+                filter_value += f",to_publication_date:{before}"
+            data = request_json(self.endpoint, params=self._params() | {
+                "filter": filter_value, "per_page": min(100, limit - len(results)),
+                "cursor": cursor, "corpus": self.corpus, "select": self.select_fields,
+            })
+            results.extend(self._convert(work) for work in data.get("results") or [])
+            next_cursor = (data.get("meta") or {}).get("next_cursor")
+            cursor = next_cursor if next_cursor and next_cursor != cursor else None
+        return results[:limit]

@@ -14,6 +14,7 @@ from composition import criticality_sensitivity, solve_mps
 from citation_graph import find_bridges
 from deduplicate import deduplicate
 from export_report import export
+from graph_expansion import expand_graph
 from normalize_paper import normalize_many
 from orchestrate_search import run_search_plan
 from providers import SEARCH_PROVIDERS
@@ -152,6 +153,45 @@ def command_bridge(args: argparse.Namespace) -> int:
     return EXIT_COMPLETE
 
 
+def command_expand_graph(args: argparse.Namespace) -> int:
+    payload = read_json(args.papers)
+    papers = records(payload)
+    index = {str(paper.get("id")): paper for paper in papers}
+    endpoints = [index.get(args.paper_a), index.get(args.paper_b)]
+    if any(paper is None for paper in endpoints):
+        raise ValueError("paper-a and paper-b must exist as canonical IDs in the papers file")
+    provider_names = [args.provider] if args.provider else ["openalex", "semantic-scholar"]
+    selected = None
+    for name in provider_names:
+        if all(
+            (paper.get("provider_ids") or {}).get(name)
+            or (name in set(paper.get("providers") or []) and paper.get("id"))
+            for paper in endpoints
+        ):
+            selected = name
+            break
+    if not selected:
+        raise ValueError("no common OpenAlex or Semantic Scholar IDs exist for both endpoints; pass --provider after enriching provider_ids")
+    result = expand_graph(
+        papers, args.paper_a, args.paper_b, SEARCH_PROVIDERS[selected](),
+        before=args.cutoff, limit=args.limit,
+    )
+    if isinstance(payload, dict):
+        output = dict(payload)
+        output["papers"] = result["papers"]
+        if isinstance(output.get("candidate_ids"), list):
+            output["candidate_ids"] = [str(paper.get("id")) for paper in result["papers"]]
+        search = dict(output.get("search") or {})
+        expansion_record = {key: value for key, value in result.items() if key != "papers"}
+        search["graph_expansions"] = list(search.get("graph_expansions") or []) + [expansion_record]
+        output["search"] = search
+        output["graph_expansion_status"] = result["status"]
+        write_json(args.output, output)
+    else:
+        write_json(args.output, result)
+    return EXIT_PARTIAL if result["status"] == "PARTIAL" else EXIT_COMPLETE
+
+
 def command_mps(args: argparse.Namespace) -> int:
     payload = read_json(args.input)
     papers = records(payload)
@@ -243,6 +283,16 @@ def parser() -> argparse.ArgumentParser:
     bridge.add_argument("--high-citation-threshold", type=int)
     bridge.add_argument("--output", required=True)
     bridge.set_defaults(func=command_bridge)
+
+    expand_graph_parser = sub.add_parser("expand-graph", help="actively retrieve backward references and forward co-citation candidates")
+    expand_graph_parser.add_argument("--papers", required=True)
+    expand_graph_parser.add_argument("--paper-a", required=True)
+    expand_graph_parser.add_argument("--paper-b", required=True)
+    expand_graph_parser.add_argument("--provider", choices=["openalex", "semantic-scholar"])
+    expand_graph_parser.add_argument("--cutoff")
+    expand_graph_parser.add_argument("--limit", type=int, default=100)
+    expand_graph_parser.add_argument("--output", required=True)
+    expand_graph_parser.set_defaults(func=command_expand_graph)
 
     mps = sub.add_parser("mps", help="solve evidence-bound Minimal Prior Sets")
     mps.add_argument("--input", required=True)

@@ -73,10 +73,10 @@ class ScholarProvider(ABC):
     def get_by_id(self, identifier: str) -> dict[str, Any]:
         raise NotImplementedError(f"{self.name} does not implement get_by_id")
 
-    def references(self, paper_id: str, *, before: str | None = None) -> list[dict[str, Any]]:
+    def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         raise NotImplementedError(f"{self.name} does not implement references")
 
-    def citations(self, paper_id: str, *, before: str | None = None) -> list[dict[str, Any]]:
+    def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         raise NotImplementedError(f"{self.name} does not implement citations")
 
     def fulltext_or_snippets(self, paper_id: str) -> list[dict[str, Any]]:

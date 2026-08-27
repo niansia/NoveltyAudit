@@ -37,7 +37,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Canonical DOI/arXiv/title normalization and preprint-to-publisher deduplication.
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
-- Deterministic direct-citation and co-citation bridge discovery, with a high-citation base-rate guard, explicit textual promotion gates, and separate post-cutoff landscape bridges.
+- Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with a high-citation base-rate guard, explicit textual promotion gates, and separate post-cutoff landscape bridges.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
 - Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
@@ -86,8 +86,12 @@ python novelty-audit/scripts/cli.py dates \
   --cutoff 2025-09-18 \
   --output run/dated.json
 
-python novelty-audit/scripts/cli.py bridge \
+python novelty-audit/scripts/cli.py expand-graph \
   --papers run/dated.json --paper-a W123 --paper-b W456 \
+  --cutoff 2025-09-18 --limit 100 --output run/expanded.json
+
+python novelty-audit/scripts/cli.py bridge \
+  --papers run/expanded.json --paper-a W123 --paper-b W456 \
   --cutoff 2025-09-18 --high-citation-threshold 500 \
   --output run/bridges.json
 

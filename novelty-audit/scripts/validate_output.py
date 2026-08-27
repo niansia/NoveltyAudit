@@ -772,6 +772,39 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.append(f"provider failure for {failure.get('provider')} is not linked to a failed or truncated SearchRun")
     query_id_set = set(query_ids)
     query_papers = {str(run.get("query_id")): {str(value) for value in run.get("canonical_paper_ids") or []} for run in query_runs if isinstance(run, dict)}
+    expansion_ids: list[str] = []
+    for index, expansion in enumerate(report["search"].get("graph_expansions") or []):
+        if not isinstance(expansion, dict):
+            errors.append(f"graph expansion {index} is malformed")
+            continue
+        expansion_id = str(expansion.get("expansion_id") or "")
+        expansion_ids.append(expansion_id)
+        endpoint_ids = {str(value) for value in expansion.get("paper_ids") or []}
+        discovered_ids = {str(value) for value in expansion.get("discovered_paper_ids") or []}
+        bridge_candidate_ids = {str(value) for value in expansion.get("bridge_candidate_ids") or []}
+        new_ids = {str(value) for value in expansion.get("new_paper_ids") or []}
+        if not expansion_id:
+            errors.append(f"graph expansion {index} lacks expansion_id")
+        if len(endpoint_ids) != 2 or not endpoint_ids <= candidate_ids:
+            errors.append(f"graph expansion {expansion_id} endpoints must be two canonical candidates")
+        if not (discovered_ids | bridge_candidate_ids | new_ids) <= candidate_ids:
+            errors.append(f"graph expansion {expansion_id} references papers outside candidate_ids")
+        if not bridge_candidate_ids <= discovered_ids or not new_ids <= discovered_ids:
+            errors.append(f"graph expansion {expansion_id} bridge/new IDs must be discovered by that expansion")
+        calls = [item for item in expansion.get("calls") or [] if isinstance(item, dict)]
+        backward_anchors = {str(item.get("anchor_paper_id")) for item in calls if item.get("direction") == "BACKWARD"}
+        forward_anchors = {str(item.get("anchor_paper_id")) for item in calls if item.get("direction") == "FORWARD"}
+        failures_for_expansion = expansion.get("failures") or []
+        if expansion.get("status") == "COMPLETE" and (failures_for_expansion or backward_anchors != endpoint_ids or not forward_anchors):
+            errors.append(f"COMPLETE graph expansion {expansion_id} lacks required backward/forward calls or contains failures")
+        if expansion.get("status") == "PARTIAL" and not failures_for_expansion:
+            errors.append(f"PARTIAL graph expansion {expansion_id} must disclose provider failures")
+        if expansion.get("status") == "PARTIAL" and not report["search"].get("gaps"):
+            errors.append(f"PARTIAL graph expansion {expansion_id} requires a search gap")
+        query_papers[expansion_id] = discovered_ids
+    if len(expansion_ids) != len(set(expansion_ids)) or any(not value for value in expansion_ids):
+        errors.append("graph expansion IDs must be non-empty and unique")
+    query_id_set.update(expansion_ids)
     for paper_id, paper in papers.items():
         found_by = {str(value) for value in paper.get("found_by_query_ids") or []}
         if not found_by:

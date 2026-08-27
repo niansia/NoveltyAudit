@@ -28,6 +28,7 @@ Version 0.2.0 strengthens user-facing audit invariants and is intentionally brea
 - Add calibrated co-citation `base_rate_status`, non-adverse `landscape_bridges`, and deterministic bridge omission checks.
 - Add page-level search history, saturation stop reasons, provider cutoff pushdown, and schema-first CLI validation.
 - Reproduce DOI, arXiv, and conservative title/author bibliography matches before assigning prior awareness.
+- Add optional `search.graph_expansions` provenance so actively retrieved reference/citation candidates remain valid, auditable paper discovery routes.
 - Replace the free-text `defensible_rewrite` with a structured object whose prior-coverage claims each carry evidence IDs.
 
 Rebuild 0.1.0 artifacts from their preserved candidate and query logs. Do not invent missing provenance or timestamps merely to satisfy the new schema; downgrade the run to partial or inconclusive when the original evidence cannot support the new fields.
