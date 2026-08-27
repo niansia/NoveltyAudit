@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="novelty-audit/assets/logo.svg" alt="NoveltyAudit" width="760">
+  <img src="scholarly-novelty-audit/assets/logo.svg" alt="NoveltyAudit" width="760">
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@ It then shows what the set covers, what it does not cover, why the papers were h
 | Ranks individually similar papers | Solves a **Minimal Prior Set** of 1–3 papers |
 | Treats any combination as an attack | Requires **Bridge Evidence** before a strong composition verdict |
 | Filters by publication year | Resolves the **earliest verified public date** and isolates uncertain records |
-| Emits one confidence or novelty score | Separates **Novelty Risk**, **Search Coverage**, and **Evidence Confidence** |
+| Emits one confidence or novelty score | Separates **Novelty Risk**, **Search Protocol Coverage**, and **Evidence Confidence** |
 | “No results” becomes “probably novel” | Reports remaining gaps and allows **INCONCLUSIVE** |
 
 The adjacent ecosystem is real and active. OpenNovelty provides a strong evidence-grounded single-paper comparison pipeline; paper-search-pro provides broad multi-source discovery; idea-novelty-auditor provides reviewer-style positioning; and novelty-assessment provides iterative harsh-critic search. NoveltyAudit deliberately focuses on composition-aware, time-safe, evidence-bound prosecution. See the dated [landscape review](docs/landscape.md).
@@ -38,10 +38,11 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
 - Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with a high-citation base-rate guard, explicit textual promotion gates, and separate post-cutoff landscape bridges.
+- Public Tier-2 PDF/HTML/text acquisition with private-address blocking, response-size limits, extracted-text files, cryptographic hashes, and evidence-to-acquisition validation.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
 - Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
-- Auditable multi-page SearchRun records whose provider counts, saturation stop reasons, corpus and truncation deterministically derive Search Coverage.
+- Auditable multi-page SearchRun records whose provider counts, saturation stop reasons, corpus and truncation deterministically derive Search Protocol Coverage.
 - JSON Schemas, adversarial tests, a golden composition fixture, and a reviewer-grounded benchmark annotation schema.
 
 No paid LLM API is required. Your host agent performs claim decomposition and evidence interpretation; the bundled Python scripts handle deterministic work.
@@ -52,18 +53,20 @@ Download or clone this repository, then copy the actual skill folder from the ch
 
 ```bash
 mkdir -p ~/.codex/skills
-cp -r ./novelty-audit ~/.codex/skills/novelty-audit
-python -m pip install -r ~/.codex/skills/novelty-audit/requirements.txt
+cp -r ./scholarly-novelty-audit ~/.codex/skills/scholarly-novelty-audit
+python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.txt
 ```
 
-Claude Code users can copy it to `~/.claude/skills/novelty-audit`; cross-agent installations commonly use `~/.agents/skills/novelty-audit`. The folder must remain named `novelty-audit` to satisfy the Agent Skills specification.
+Claude Code users can copy it to `~/.claude/skills/scholarly-novelty-audit`; cross-agent installations commonly use `~/.agents/skills/scholarly-novelty-audit`. The folder must remain named `scholarly-novelty-audit` to satisfy the Agent Skills specification.
+
+If upgrading from a pre-0.3.1 checkout, remove or archive the old `novelty-audit` skill folder before installing `scholarly-novelty-audit`. Keeping both folders can cause duplicate or stale skill triggering.
 
 ## Use
 
 Ask naturally:
 
 ```text
-Use $novelty-audit on this claim:
+Use $scholarly-novelty-audit on this claim:
 “We are the first to combine adaptive memory with compression-aware selection
 for long-video vision-language reasoning.”
 
@@ -75,36 +78,46 @@ at most three papers, strict date filtering, residual novelty, and Markdown + JS
 The host agent will use the skill workflow. Deterministic helpers can also be run directly:
 
 ```bash
-python novelty-audit/scripts/cli.py search \
+python scholarly-novelty-audit/scripts/cli.py search \
   --provider openalex \
   --query "adaptive memory compression aware selection" \
   --before 2025-09-18 \
   --output run/openalex.json
 
-python novelty-audit/scripts/cli.py dates \
+python scholarly-novelty-audit/scripts/cli.py dates \
   --input run/openalex.json \
   --cutoff 2025-09-18 \
   --output run/dated.json
 
-python novelty-audit/scripts/cli.py expand-graph \
+python scholarly-novelty-audit/scripts/cli.py expand-graph \
   --papers run/dated.json --paper-a W123 --paper-b W456 \
   --cutoff 2025-09-18 --limit 100 --output run/expanded.json
 
-python novelty-audit/scripts/cli.py bridge \
+python scholarly-novelty-audit/scripts/cli.py fetch-fulltext \
+  --papers run/expanded.json --paper-id W123 \
+  --output-dir run/fulltext --manifest run/fulltext-manifest.json
+
+python scholarly-novelty-audit/scripts/cli.py bridge \
   --papers run/expanded.json --paper-a W123 --paper-b W456 \
   --cutoff 2025-09-18 --high-citation-threshold 500 \
   --output run/bridges.json
 
-python novelty-audit/scripts/cli.py verify-citations \
+python scholarly-novelty-audit/scripts/cli.py verify-citations \
   --input run/report.json --output run/report.verified.json
-python novelty-audit/scripts/cli.py validate --input run/report.verified.json
-python novelty-audit/scripts/cli.py export \
+python scholarly-novelty-audit/scripts/cli.py validate --input run/report.verified.json
+python scholarly-novelty-audit/scripts/cli.py export \
   --input run/report.verified.json --format html --output run/report.html
 ```
 
 The bridge threshold above is only an example. Use a documented, field-calibrated value; omit it when none is defensible, in which case co-citation remains `UNASSESSED` and cannot strengthen the verdict.
 
-Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Coverage deterministically rather than silently becoming evidence of novelty.
+Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. arXiv offsets advance by raw API entries, never by the smaller post-cutoff eligible set. At least one deterministic query-family run bypasses aggressive provider-side date filtering as a temporal-recall backstop; the earliest-public-date resolver remains the final eligibility gate. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Protocol Coverage deterministically rather than silently becoming evidence of novelty. `BROAD` means broad execution of this bounded protocol; it is not demonstrated recall of all relevant literature.
+
+The MPS search bound is always `K ≤ 3`. “None found” means no qualifying evidence-bound set of three or fewer papers was found; it does not establish that no larger combination exists.
+
+Every endpoint pair in every recomputed multi-paper MPS must have a `COMPLETE` citation-graph expansion record. If any pair is missing or `PARTIAL`, the validator permits only `INCONCLUSIVE` and requires the deterministic search-gap marker `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>`. Consequently, `FRAGMENTED_PRECEDENT` means the relevant pairs were actually expanded and no qualifying historical bridge was verified—not merely that no bridge happened to be present in the initial candidate pool.
+
+A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. Therefore “no bridge” means no bridge was verified within the recorded bounded expansion, and cannot silently support `FRAGMENTED_PRECEDENT` when the citation neighborhood may continue beyond the budget.
 
 ## Verdicts
 
@@ -131,15 +144,17 @@ NoveltyAudit performs scholarly-literature reconnaissance only. It does not prov
 ## Test
 
 ```bash
-python -m pytest novelty-audit/tests -q
-skills-ref validate ./novelty-audit
+python -m pytest scholarly-novelty-audit/tests -q
+skills-ref validate ./scholarly-novelty-audit
 ```
 
 Live smoke tests may encounter provider rate limits; those failures are expected to be explicit. All core algorithms and adversarial invariants run offline.
 
 ## Roadmap that needs public data, not synthetic theater
 
-The deterministic core is implemented. The next growth asset is a licensed set of reviewer-grounded cases: overlooked killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate 20 “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](novelty-audit/benchmark/README.md).
+The deterministic core is implemented. The next growth asset is a licensed set of reviewer-grounded cases: bibliography-absent killer papers, genuine composition concerns, ancestor-term recoveries, temporal traps, and false-positive defenses. This repository intentionally does not fabricate 20 “real” demos or redistribute third-party review data under the wrong license. See [benchmark policy](scholarly-novelty-audit/benchmark/README.md).
+
+External validation is not complete. The [empirical status page](docs/empirical-status.md) reports the exact non-synthetic counters: one licensed case has reached real provider graph expansion, zero cases have completed the full end-to-end audit, the first three fixed graph pairs recovered zero third-paper bridges, and benchmark metrics remain unmeasured.
 
 The release gates are separated into user-trust requirements, benchmark evidence, and adoption evidence in [user-facing release acceptance](docs/release-acceptance.md).
 
@@ -147,6 +162,6 @@ The release gates are separated into user-trust requirements, benchmark evidence
 
 High-value contributions are public reviewer-grounded cases, provider adapters, date golden tests, bridge-evidence edge cases, and report-faithfulness failures. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-Release archives must be built from tracked Git content; see [release packaging](docs/releasing.md). The repository is installed as an Agent Skill, not as a Python import package.
+Installable runtime archives must be built with the allowlist-based deterministic bundle tool; see [release packaging](docs/releasing.md). The repository is installed as an Agent Skill, not as a Python import package.
 
 If NoveltyAudit finds a paper your reviewer could have found first, star the repo.

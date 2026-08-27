@@ -1,12 +1,12 @@
 [project]
-name = "novelty-audit"
-version = "0.3.0"
+name = "scholarly-novelty-audit"
+version = "0.3.1"
 description = "Composition-aware scholarly novelty audit Agent Skill"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{name = "NoveltyAudit contributors"}]
-dependencies = ["jsonschema>=4.23"]
+dependencies = ["jsonschema>=4.23", "pypdf>=5.0"]
 keywords = ["agent-skills", "scholarly", "novelty", "literature-search", "research"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -21,5 +21,5 @@ test = ["pytest>=8"]
 packages = []
 
 [tool.pytest.ini_options]
-testpaths = ["novelty-audit/tests"]
+testpaths = ["scholarly-novelty-audit/tests"]
 addopts = "-ra"

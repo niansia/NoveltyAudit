@@ -18,10 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install --upgrade pip pytest jsonschema
-      - run: python -m pytest novelty-audit/tests -q
-      - run: python novelty-audit/scripts/cli.py --help
-      - run: python novelty-audit/scripts/secret_scan.py .
+      - run: python -m pip install --upgrade pip pytest
+      - run: python -m pip install -r scholarly-novelty-audit/requirements.txt
+      - run: python -m pytest scholarly-novelty-audit/tests -q
+      - run: python scholarly-novelty-audit/scripts/cli.py --help
+      - run: python scholarly-novelty-audit/scripts/secret_scan.py .
 
   skill-spec:
     runs-on: ubuntu-latest
@@ -31,7 +32,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
-      - run: skills-ref validate ./novelty-audit
+      - run: skills-ref validate ./scholarly-novelty-audit
 
   packaging-safety:
     runs-on: ubuntu-latest
@@ -41,4 +42,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip wheel . --no-deps --wheel-dir dist
-      - run: python -c "import glob,zipfile; p=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(p).namelist(); assert all(n.startswith('novelty_audit-') for n in names), names"
+      - run: python -c "import glob,zipfile; p=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(p).namelist(); assert all(n.startswith('scholarly_novelty_audit-') for n in names), names"
+      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.1.zip
+      - run: python -c "import zipfile; names=zipfile.ZipFile('dist/scholarly-novelty-audit-v0.3.1.zip').namelist(); assert 'scholarly-novelty-audit/SKILL.md' in names; assert not any('/tests/' in n or '/benchmark/' in n or '__pycache__' in n for n in names), names"

@@ -2,10 +2,18 @@
 
 NoveltyAudit is distributed as an Agent Skill directory, not as an importable PyPI library. The root `pyproject.toml` provides project metadata and test configuration; setuptools package discovery is explicitly disabled so ignored local work cannot enter a wheel.
 
-Create downloadable source archives only from tracked Git content:
+Build the installable runtime ZIP with the allowlist-based builder. It includes only `SKILL.md`, `agents/`, `assets/`, `references/`, `schemas/`, `scripts/`, and `requirements.txt`; tests, benchmarks, caches, temporary scans, and repository metadata are excluded. The build is byte-for-byte deterministic and emits a SHA-256 sidecar.
 
 ```bash
-git archive --format=zip --prefix=NoveltyAudit-v0.3.0/ --output=NoveltyAudit-v0.3.0.zip v0.3.0
+python tools/build_runtime_bundle.py \
+  --skill scholarly-novelty-audit \
+  --output dist/scholarly-novelty-audit-v0.3.1.zip
 ```
 
-Never publish an archive made directly from the working directory. It may contain ignored caches, temporary collision scans, PDF renders, smoke-test output, or other local material.
+If a complete source archive is also desired for developers, create it only from tracked Git content:
+
+```bash
+git archive --format=zip --prefix=NoveltyAudit-v0.3.1/ --output=NoveltyAudit-v0.3.1.zip v0.3.1
+```
+
+Never publish an archive made directly from the working directory. It may contain ignored caches, temporary collision scans, PDF renders, smoke-test output, or other local material. Upload the runtime ZIP for skill installation and the source archive only as a separate developer artifact.

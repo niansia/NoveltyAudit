@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1 - 2026-08-27
+
+- Renamed the distributable skill to `scholarly-novelty-audit` and narrowed its trigger to forensic, evidence-first, composition-aware scholarly audits.
+- Replaced author-awareness inference with observable supplied-bibliography states.
+- Reframed the coverage axis as Search Protocol Coverage and encoded that it is not a literature-recall guarantee.
+- Made the `K ≤ 3` MPS search bound and larger-combination limitation explicit in machine and human outputs.
+- Added provider-derived public Tier-2 PDF/HTML/text acquisition, safe URL checks, extraction hashes, manifests, and evidence-to-acquisition validation.
+- Added a deterministic allowlist-based runtime ZIP builder that excludes tests, benchmarks, caches, and repository-only material.
+- Made runtime ZIP metadata cross-platform deterministic and normalized schema date/date-time diagnostics.
+- Made complete graph expansion a validator-enforced obligation for every endpoint pair in every multi-paper MPS; incomplete pairs force `INCONCLUSIVE` plus a deterministic search gap.
+- Fixed arXiv traversal to advance by raw API entries after local cutoff filtering, preventing false no-new-results saturation and false `BROAD` coverage.
+- Made graph-expansion limit exhaustion a first-class partial state and added a deterministic unfiltered temporal-recall backstop query.
+- Preserved the canonical first version's provider ID during deduplication so real graph expansion cannot silently query a lower-provenance duplicate work ID.
+- Moved Agent Skills runtime compatibility to its specification-defined top-level frontmatter field.
+- Expanded the competitive landscape and added a market-category comparison.
+
 ## 0.3.0 - 2026-08-27
 
 - Made Search Coverage deterministic from provider-returned SearchRun counts, pagination, corpus, truncation, failures, obligations, and saturation.

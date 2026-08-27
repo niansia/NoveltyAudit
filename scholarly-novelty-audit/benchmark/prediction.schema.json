@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3.1/benchmark-prediction.schema.json",
+  "x-schema-version": "0.3.1",
+  "title": "NoveltyAudit Benchmark Prediction",
+  "type": "object",
+  "required": ["case_id", "ranked_papers", "predicted_prior_sets", "verdict_paper_ids", "report_claims"],
+  "properties": {
+    "case_id": {"type": "string", "minLength": 1},
+    "ranked_papers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "predicted_prior_sets": {"type": "array", "items": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 3, "uniqueItems": true}},
+    "verdict_paper_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "report_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "evidence_ids"],
+        "properties": {
+          "text": {"type": "string"},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    }
+  }
+}

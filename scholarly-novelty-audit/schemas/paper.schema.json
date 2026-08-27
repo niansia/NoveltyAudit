@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3.1/paper.schema.json",
+  "x-schema-version": "0.3.1",
+  "title": "Canonical Scholarly Paper",
+  "type": "object",
+  "required": ["id", "title", "providers", "dates", "cutoff_status", "coverage", "found_by_query_ids"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "abstract": {"type": ["string", "null"]},
+    "authors": {"type": "array"},
+    "year": {"type": ["integer", "string", "null"]},
+    "venue": {"type": ["string", "null"]},
+    "doi": {"type": ["string", "null"]},
+    "arxiv_id": {"type": ["string", "null"]},
+    "arxiv_version": {"type": ["integer", "null"], "minimum": 1},
+    "url": {"type": ["string", "null"], "format": "uri-reference"},
+    "fulltext_urls": {"type": "array", "items": {"type": "string", "format": "uri"}, "uniqueItems": true},
+    "providers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "dates": {"type": "array"},
+    "earliest_public_date": {"type": ["string", "null"], "format": "date"},
+    "cutoff_status": {"enum": ["ELIGIBLE", "POST_CUTOFF", "DATE_UNCERTAIN", "ELIGIBILITY_UNCERTAIN"]},
+    "references": {"type": "array", "items": {"type": "string"}},
+    "citation_count": {"type": ["integer", "null"], "minimum": 0},
+    "found_by_query_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
+    "citation_validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "identifier", "provider", "valid", "checked_at"],
+        "properties": {
+          "type": {"enum": ["DOI", "ARXIV"]},
+          "identifier": {"type": "string"},
+          "provider": {"enum": ["crossref", "arxiv"]},
+          "valid": {"type": "boolean"},
+          "checked_at": {"type": "string", "format": "date-time"},
+          "error_code": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {"enum": ["EXACT", "FUNCTIONAL", "PARTIAL", "NO", "UNKNOWN", "LIKELY", "UNLIKELY"]},
+          {
+            "type": "object",
+            "required": ["status", "evidence_ids"],
+            "properties": {
+              "status": {"enum": ["EXACT", "FUNCTIONAL", "PARTIAL", "NO", "UNKNOWN", "LIKELY", "UNLIKELY"]},
+              "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+            }
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": true
+}

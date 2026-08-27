@@ -1,0 +1,32 @@
+# Deterministic tooling
+
+Before running helpers, verify Python 3.10+ and install `requirements.txt` when package installation is permitted. If `jsonschema` is unavailable, deterministic report validation is unavailable. If `pypdf` is unavailable, PDF Tier-2 extraction is unavailable. Do not silently skip either capability: disclose the limitation and mark the run `PARTIAL` or the conclusion `INCONCLUSIVE` as appropriate.
+
+Run commands from the user's working directory. Set the skill path explicitly when useful:
+
+```text
+python <skill>/scripts/cli.py search --provider openalex --family mechanism --query "..." --before 2025-09-18 --output candidates.json
+python <skill>/scripts/cli.py search-plan --input query-plan.json --output candidates.json
+python <skill>/scripts/cli.py dedupe --input candidates.json --output canonical.json
+python <skill>/scripts/cli.py dates --input canonical.json --cutoff 2025-09-18 --output dated.json
+python <skill>/scripts/cli.py fetch-fulltext --papers dated.json --paper-id W123 --output-dir fulltext --manifest fulltext-manifest.json
+python <skill>/scripts/cli.py mps --input report-draft.json --output mps.json
+python <skill>/scripts/cli.py expand-graph --papers dated.json --paper-a W123 --paper-b W456 --cutoff 2025-09-18 --limit 100 --output expanded.json
+python <skill>/scripts/cli.py bridge --papers canonical.json --paper-a W123 --paper-b W456 --cutoff 2025-09-18 --high-citation-threshold <field-calibrated-value> --output bridges.json
+python <skill>/scripts/cli.py verify-citations --input report.json --output report.verified.json
+python <skill>/scripts/cli.py validate --input report.verified.json
+python <skill>/scripts/cli.py export --input report.verified.json --format markdown --output report.md
+python <skill>/scripts/cli.py snapshot-diff --before previous-report.json --after current-report.json --output diff.json
+```
+
+`query-plan.json` contains an explicit `cutoff`, per-page candidate `limit`, optional `max_pages` (default 10), provider list, and canonical queries. Every query supplies `query_id`, `family`, `query`, `reason`, `target_facets`, and `removed_author_terms`; a query may explicitly set `temporal_recall_backstop: true`. If none does, `search-plan` deterministically chooses the first ancestor query, or the first query when no ancestor query exists. That run bypasses provider-side cutoff pushdown, records `temporal_recall_backstop=true` and `provider_cutoff_applied=false`, and leaves final eligibility to downstream date resolution. Each SearchRun records aggregate counts, every page response, provider `total_count`, `truncated`, `corpus`, raw and canonical paper IDs, and a `saturation_stop_reason`: `PROVIDER_EXHAUSTED`, `NO_NEW_RESULTS`, `PAGE_BUDGET_EXHAUSTED`, or `PROVIDER_ERROR`. For arXiv, `raw_returned_count`, `eligible_returned_count`, and the next raw offset prevent locally filtered pages from becoming fake saturation. The command returns `COMPLETE`, `PARTIAL`, or `FAILED`, structured provider failures, canonical candidates, and a deterministic coverage derivation.
+
+Search Protocol Coverage is not a model judgment and is not a recall estimate. It is derived only from SearchRun records. `BROAD` means that the bounded protocol was executed broadly; it does not demonstrate that every relevant paper was retrieved. `BROAD` requires complete run metadata, at least two successful providers, every required query family, no failed or truncated run, a saturation stop for every successful run, all search obligations complete, and `corpus=all` for every OpenAlex run. The machine derivation records `scope=PROTOCOL_EXECUTION_NOT_RECALL`, and the validator independently recomputes both `search.saturated` and the coverage level.
+
+Primary retrieval providers are OpenAlex, Semantic Scholar, and arXiv. Crossref is used only for DOI and metadata verification, not as a primary semantic search source. API keys are optional for basic use; Semantic Scholar accepts `S2_API_KEY`, and a free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. OpenAlex retired the polite-pool system in 2026, so `mailto` is not sent. NoveltyAudit explicitly requests OpenAlex `corpus=all`; set `OPENALEX_CORPUS=core` or `expansion` only when intentionally narrowing the run, which prevents a `BROAD` classification.
+
+The scripts never call an LLM. They normalize records, resolve dates, deduplicate versions, acquire and extract provider-derived public full text, discover graph candidates, solve MPS, validate invariants, and render reports. `fetch-fulltext` accepts only public HTTP(S) sources, rejects local/private destinations and embedded credentials, limits response size, extracts PDF/HTML/text, writes text to the user's output directory, and records content/text hashes. Acquisition does not interpret evidence; the host agent remains responsible for facet decomposition and evidence interpretation. Tier-2 evidence must reference a matching successful acquisition ID.
+
+`expand-graph` is the active citation-chasing stage. It auto-selects a provider shared by both endpoint records, preferring OpenAlex and then Semantic Scholar, or accepts `--provider`. Both endpoints must carry that provider's ID in `provider_ids`. It calls `references()` for backward expansion and `citations()` for forward expansion, admits a third paper as a co-citation candidate only when its returned reference list contains the other endpoint, merges new records into `papers`, reapplies the cutoff, and emits call/failure provenance. Each call records its requested limit and `possibly_truncated`. Returning exactly the limit is conservatively treated as `LIMIT_REACHED`, so the expansion is `PARTIAL` even when the provider returned no explicit error.
+
+Graph expansion is a conditional audit obligation, not an optional claim. For every recomputed MPS with two or more papers, all endpoint combinations must appear as `COMPLETE` records in `search.graph_expansions`. Missing and `PARTIAL` pairs cannot support a negative bridge finding: the verdict must be `INCONCLUSIVE`, and `search.gaps` must contain `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>` for each incomplete pair. Paper IDs are sorted lexicographically when constructing this marker.

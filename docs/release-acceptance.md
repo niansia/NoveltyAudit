@@ -7,20 +7,20 @@ The 168-point product specification mixes three different maturity levels. Novel
 Required before recommending a public beta:
 
 - Every adverse conclusion is evidence-bound, every reported paper belongs to the candidate snapshot, and every DOI/arXiv identifier is independently resolved.
-- Killer candidates show both coverage and non-coverage evidence plus prior awareness.
+- Killer candidates show both coverage and non-coverage evidence plus supplied-bibliography status without inferring author awareness.
 - Hard coverage is Tier-2 full-text evidence; metadata triage never becomes a final overlap verdict.
 - Claim criticality is frozen and hashed before retrieval; every critical facet receives multiple query families and leave-one-out sensitivity.
-- Cutoff enforcement is deterministic. Post-cutoff and date-uncertain records cannot enter killers, MPS, bridge support, or verdict evidence.
+- Cutoff enforcement is deterministic. Post-cutoff and date-uncertain records cannot enter killers, MPS, bridge support, or verdict evidence. At least one query family bypasses provider cutoff pushdown as a temporal-recall backstop.
 - MPS minimality and bridge requirements are recomputed rather than trusted from model output.
 - Co-citation cannot strengthen a verdict without complete citation counts and a documented calibrated threshold; post-cutoff graph routes remain visible only as non-adverse landscape bridges.
-- Verdict, Novelty Risk, Search Coverage, and Evidence Confidence obey explicit consistency rules.
+- Verdict, Novelty Risk, Search Protocol Coverage, and Evidence Confidence obey explicit consistency rules.
 - Query IDs, discovery routes, provider page history, saturation stop reasons, failures, truncation, search gaps, evidence timestamps, and machine-readable status are preserved.
-- Citation expansion actively calls provider reference and citation APIs, merges third-paper bridge sources into the candidate pool, and records partial expansion failures.
+- Citation expansion actively calls provider reference and citation APIs, merges third-paper bridge sources into the candidate pool, and records partial expansion failures or exhausted limits. Every endpoint pair in every recomputed multi-paper MPS requires a complete, non-truncated expansion; otherwise the verdict is capped at `INCONCLUSIVE` with a deterministic search-gap marker.
 - Markdown and HTML contain no novelty percentages, uncalibrated decimals, internal ranking features, raw machine JSON, or unescaped scholarly content.
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.
 
-Most locally enforceable P0 gates are implemented in schema version 0.3.0 and guarded by offline adversarial tests. Remaining P0 work that needs a larger orchestration layer is tracked below.
+Most locally enforceable P0 gates are implemented in schema version 0.3.1 and guarded by offline adversarial tests. Remaining P0 work that needs a larger orchestration layer is tracked below.
 
 ## P1 — evidence that the product works
 
@@ -45,9 +45,16 @@ Required for a mature 1.0 product, not for an honest alpha/beta Skill:
 
 ## Remaining public-beta blockers
 
-1. An actual Tier-2 full-text acquisition pipeline; the current contract and validator are ready, but provider full-text acquisition is not yet bundled end to end.
-2. End-to-end host-agent report assembly with schema-retry exhaustion represented as `PARTIAL`. Multi-provider candidate search, fallback, identifier verification, run manifests, snapshot hashing, and snapshot diffing are bundled, but model-output retry remains client-controlled.
-3. Clean-environment macOS and Linux install tests. CI covers Linux unit behavior, but installation timing and macOS have not been measured.
-4. Real licensed cases for calibration and benchmark claims.
+1. End-to-end host-agent report assembly with schema-retry exhaustion represented as `PARTIAL`. Multi-provider candidate search, fallback, identifier verification, public Tier-2 acquisition, run manifests, snapshot hashing, and snapshot diffing are bundled, but model-output retry remains client-controlled.
+2. Clean-environment macOS and Linux install tests. CI covers Linux unit behavior, but installation timing and macOS have not been measured.
 
 These blockers must remain visible in the README and release notes until evidence closes them.
+
+## Blocks benchmark or performance claims
+
+- Licensed reviewer-grounded cases and adjudicated labels.
+- Calibration, baselines, ablations, repeated-run stability, and performance measurements listed under P1.
+
+These are not blockers for an honestly labeled alpha or public beta, but NoveltyAudit must not make benchmark, calibration, or performance claims until they exist.
+
+Current evidence is explicitly counted in [empirical validation status](empirical-status.md). As of 2026-08-27, one licensed case has reached real provider graph expansion, zero cases have completed the full end-to-end audit, zero third-paper bridge candidates were recovered in its three fixed pairs, and benchmark metrics remain unmeasured.
