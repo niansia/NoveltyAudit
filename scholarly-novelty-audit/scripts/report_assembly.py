@@ -14,6 +14,26 @@ def report_hash(report: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
 
 
+def audit_identity(report: dict[str, Any]) -> dict[str, str]:
+    claim_map = report.get("claim_map") if isinstance(report.get("claim_map"), dict) else {}
+    run_manifest = report.get("run_manifest") if isinstance(report.get("run_manifest"), dict) else {}
+    identity = {
+        "audit_id": str(report.get("audit_id") or "").strip(),
+        "claim_id": str(claim_map.get("claim_id") or "").strip(),
+        "claim_freeze_hash": str(claim_map.get("freeze_hash") or "").strip(),
+        "cutoff": str(run_manifest.get("cutoff") or "").strip(),
+    }
+    missing = [key for key, value in identity.items() if not value]
+    if missing:
+        raise ValueError(f"report lacks immutable audit identity fields: {', '.join(missing)}")
+    return identity
+
+
+def audit_identity_hash(identity: dict[str, str]) -> str:
+    encoded = json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return f"sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
+
+
 def evaluate_report_attempt(
     report: dict[str, Any],
     *,
@@ -23,12 +43,16 @@ def evaluate_report_attempt(
     """Append one auditable retry attempt without accepting invalid output."""
     if not 1 <= max_attempts <= 3:
         raise ValueError("max-attempts must be between 1 and 3")
+    identity = audit_identity(report)
+    identity_digest = audit_identity_hash(identity)
     attempts: list[dict[str, Any]] = []
     if previous_state is not None:
         if previous_state.get("status") != "RETRY_REQUIRED":
             raise ValueError("report assembly state is already terminal")
         if previous_state.get("max_attempts") != max_attempts:
             raise ValueError("max-attempts cannot change within one assembly state")
+        if previous_state.get("audit_identity") != identity:
+            raise ValueError("report assembly state belongs to a different audit identity")
         previous_attempts = previous_state.get("attempts")
         if not isinstance(previous_attempts, list) or not previous_attempts:
             raise ValueError("report assembly state lacks attempt history")
@@ -45,6 +69,8 @@ def evaluate_report_attempt(
             or previous_state.get("retry_exhausted") is not False
             or previous_state.get("report_hash") != latest.get("report_hash")
             or previous_state.get("validation_errors") != latest.get("validation_errors")
+            or latest.get("audit_identity_hash") != identity_digest
+            or any(item.get("audit_identity_hash") != identity_digest for item in previous_attempts)
         ):
             raise ValueError("report assembly state conflicts with its latest retry record")
         attempts = list(previous_attempts)
@@ -58,6 +84,7 @@ def evaluate_report_attempt(
     attempts.append({
         "attempt": attempt,
         "report_hash": digest,
+        "audit_identity_hash": identity_digest,
         "valid": not errors,
         "validation_errors": errors,
     })
@@ -73,6 +100,7 @@ def evaluate_report_attempt(
 
     return {
         "status": status,
+        "audit_identity": identity,
         "report_valid": not errors,
         "attempt_count": attempt,
         "max_attempts": max_attempts,

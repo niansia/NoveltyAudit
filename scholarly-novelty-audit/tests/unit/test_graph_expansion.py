@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import cli
 from graph_expansion import expand_graph
+from providers.base import GraphResult
 
 
 def paper(identifier, provider_id, citation_count, *, references=None, date="2024-01-01"):
@@ -37,6 +38,16 @@ class FakeGraphProvider:
             paper("C", "W-C", 3, references=["W-A", "W-B"]),
             paper("X", "W-X", 3, references=[paper_id]),
         ]
+
+    def references_with_metadata(self, paper_id, *, before=None, limit=100):
+        papers = self.references(paper_id, before=before, limit=limit)
+        exhausted = len(papers) < limit
+        return GraphResult(papers=papers, exhausted=exhausted, next_token=None if exhausted else "more")
+
+    def citations_with_metadata(self, paper_id, *, before=None, limit=100):
+        papers = self.citations(paper_id, before=before, limit=limit)
+        exhausted = len(papers) < limit
+        return GraphResult(papers=papers, exhausted=exhausted, next_token=None if exhausted else "more")
 
 
 def test_expansion_actively_fetches_graph_and_merges_bridge_source():
@@ -107,8 +118,58 @@ def test_full_call_budget_is_partial_even_without_provider_failure():
     forward_call = next(call for call in result["calls"] if call["direction"] == "FORWARD")
     assert forward_call == {
         "direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 2,
-        "limit": 2, "possibly_truncated": True,
+        "limit": 2, "exhausted": False, "next_token": "more",
+        "provider_total": None, "raw_examined_count": None,
+        "possibly_truncated": True,
     }
+
+
+def test_explicit_provider_exhaustion_avoids_false_partial_at_exact_limit():
+    class ExactProvider(FakeGraphProvider):
+        def references_with_metadata(self, paper_id, *, before=None, limit=100):
+            papers = [paper(f"R{index}", f"W-R{index}", 1) for index in range(limit)]
+            return GraphResult(
+                papers=papers, exhausted=True, provider_total=limit,
+                raw_examined_count=limit,
+            )
+
+        def citations_with_metadata(self, paper_id, *, before=None, limit=100):
+            papers = [paper("C", "W-C", 3, references=["W-A", "W-B"])]
+            papers.extend(paper(f"X{index}", f"W-X{index}", 3) for index in range(1, limit))
+            return GraphResult(
+                papers=papers, exhausted=True, provider_total=limit,
+                raw_examined_count=limit,
+            )
+
+    result = expand_graph(
+        [paper("A", "W-A", 10), paper("B", "W-B", 100)],
+        "A", "B", ExactProvider(), before="2025-01-01", limit=2,
+    )
+    assert result["status"] == "COMPLETE"
+    assert result["partial_reasons"] == []
+    assert all(call["returned_count"] == 2 for call in result["calls"])
+    assert all(call["exhausted"] is True for call in result["calls"])
+    assert all(call["possibly_truncated"] is False for call in result["calls"])
+
+
+def test_legacy_list_only_graph_provider_fails_closed_without_exhaustion_metadata():
+    class LegacyProvider:
+        name = "openalex"
+
+        def references(self, paper_id, *, before=None, limit=100):
+            return []
+
+        def citations(self, paper_id, *, before=None, limit=100):
+            return []
+
+    result = expand_graph(
+        [paper("A", "W-A", 10), paper("B", "W-B", 100)],
+        "A", "B", LegacyProvider(), before="2025-01-01", limit=25,
+    )
+    assert result["status"] == "PARTIAL"
+    assert result["partial_reasons"] == ["LIMIT_REACHED"]
+    assert all(call["exhausted"] is False for call in result["calls"])
+    assert all(call["next_token"] == "UNREPORTED" for call in result["calls"])
 
 
 def test_empty_provider_references_caveat_negative_graph_result():

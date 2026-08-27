@@ -2,24 +2,122 @@
 
 from __future__ import annotations
 
+import http.client
+import ipaddress
+import re
+import socket
+from collections.abc import Callable
 from datetime import datetime, timezone
 from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
-import ipaddress
 from pathlib import Path
-import re
-import socket
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urljoin, urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import (
+    HTTPHandler,
+    HTTPRedirectHandler,
+    HTTPSHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 
-
-USER_AGENT = "NoveltyAudit/0.3.1 (+https://github.com/)"
+USER_AGENT = "NoveltyAudit/0.3.1"
 
 
 class FullTextError(RuntimeError):
     pass
+
+
+def _public_address_records(hostname: str, port: int) -> tuple[tuple[Any, Any, int, tuple[Any, ...], str], ...]:
+    try:
+        records = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+    except OSError as error:
+        raise FullTextError(f"full-text host resolution failed: {type(error).__name__}") from error
+    approved: list[tuple[Any, Any, int, tuple[Any, ...], str]] = []
+    seen: set[tuple[Any, str, int]] = set()
+    for family, socktype, proto, _canonical_name, sockaddr in records:
+        address = str(sockaddr[0]).split("%", 1)[0]
+        try:
+            ip = ipaddress.ip_address(address)
+        except ValueError as error:
+            raise FullTextError("full-text resolver returned an invalid address") from error
+        if not ip.is_global:
+            raise FullTextError("full-text URL resolves to a non-public address")
+        key = (family, str(ip), int(sockaddr[1]))
+        if key not in seen:
+            approved.append((family, socktype, proto, sockaddr, str(ip)))
+            seen.add(key)
+    if not approved:
+        raise FullTextError("full-text host resolution returned no public addresses")
+    return tuple(approved)
+
+
+class _PinnedConnectionMixin:
+    _pinned_records: tuple[tuple[Any, Any, int, tuple[Any, ...], str], ...]
+
+    def _pin_public_peer(self) -> None:
+        self._pinned_records = _public_address_records(self.host, self.port or self.default_port)
+
+    def _create_pinned_connection(  # type: ignore[no-untyped-def]
+        self, _address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None
+    ):
+        approved = {record[4] for record in self._pinned_records}
+        last_error: OSError | None = None
+        for family, socktype, proto, sockaddr, _validated_address in self._pinned_records:
+            connection = None
+            try:
+                connection = socket.socket(family, socktype, proto)
+                if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                    connection.settimeout(timeout)
+                if source_address:
+                    connection.bind(source_address)
+                connection.connect(sockaddr)
+                peer = str(ipaddress.ip_address(str(connection.getpeername()[0]).split("%", 1)[0]))
+                if peer not in approved or not ipaddress.ip_address(peer).is_global:
+                    raise FullTextError("full-text connection reached an unvalidated or non-public peer")
+                return connection
+            except FullTextError:
+                if connection is not None:
+                    connection.close()
+                raise
+            except OSError as error:
+                last_error = error
+                if connection is not None:
+                    connection.close()
+        if last_error is not None:
+            raise last_error
+        raise FullTextError("full-text connection had no validated public peer")
+
+
+class _PinnedHTTPConnection(_PinnedConnectionMixin, http.client.HTTPConnection):
+    def __init__(self, host, port=None, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(host, port, **kwargs)
+        self._pin_public_peer()
+        self._create_connection = self._create_pinned_connection
+
+
+class _PinnedHTTPSConnection(_PinnedConnectionMixin, http.client.HTTPSConnection):
+    def __init__(self, host, port=None, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(host, port, **kwargs)
+        self._pin_public_peer()
+        self._create_connection = self._create_pinned_connection
+
+
+class _PinnedHTTPHandler(HTTPHandler):
+    def http_open(self, req):  # type: ignore[no-untyped-def]
+        return self.do_open(_PinnedHTTPConnection, req)
+
+
+class _PinnedHTTPSHandler(HTTPSHandler):
+    def https_open(self, req):  # type: ignore[no-untyped-def]
+        return self.do_open(
+            _PinnedHTTPSConnection,
+            req,
+            context=self._context,
+            check_hostname=self._check_hostname,
+        )
 
 
 class _TextExtractor(HTMLParser):
@@ -69,13 +167,18 @@ def _validate_public_url(url: str, *, resolve: bool) -> str:
 
 class _SafeRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
-        target = _validate_public_url(urljoin(req.full_url, newurl), resolve=True)
+        target = _validate_public_url(urljoin(req.full_url, newurl), resolve=False)
         return super().redirect_request(req, fp, code, msg, headers, target)
 
 
 def fetch_url(url: str, max_bytes: int = 25_000_000) -> tuple[bytes, str, str]:
-    url = _validate_public_url(url, resolve=True)
-    opener = build_opener(_SafeRedirectHandler())
+    url = _validate_public_url(url, resolve=False)
+    opener = build_opener(
+        ProxyHandler({}),
+        _SafeRedirectHandler(),
+        _PinnedHTTPHandler(),
+        _PinnedHTTPSHandler(),
+    )
     request = Request(url, headers={"Accept": "application/pdf,text/html,text/plain;q=0.9,*/*;q=0.1", "User-Agent": USER_AGENT})
     with opener.open(request, timeout=45) as response:
         payload = response.read(max_bytes + 1)
@@ -99,7 +202,7 @@ def _extract(payload: bytes, content_type: str) -> tuple[str, str, str]:
         text = "\n\n".join(page for page in pages if page)
         return text, "PDF", "pypdf"
     decoded = payload.decode("utf-8", errors="replace")
-    if content_type in {"text/html", "application/xhtml+xml"} or re.search(r"<html\b", decoded[:1000], re.I):
+    if content_type in {"text/html", "application/xhtml+xml"} or re.search(r"<html\b", decoded[:1000], re.IGNORECASE):
         parser = _TextExtractor()
         parser.feed(decoded)
         return parser.text(), "HTML", "html.parser"
@@ -177,7 +280,7 @@ def acquire_fulltexts(
                     "char_count": len(text),
                 })
                 break
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001 - isolate one failed candidate URL
                 errors.append(f"{url}: {error}")
         else:
             failures.append({"paper_id": paper_id, "error_code": "ACQUISITION_FAILED", "detail": " | ".join(errors)})

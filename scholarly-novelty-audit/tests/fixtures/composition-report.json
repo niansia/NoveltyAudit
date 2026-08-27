@@ -126,10 +126,10 @@
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [
-          {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "possibly_truncated": false},
-          {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "possibly_truncated": false},
-          {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "possibly_truncated": false},
-          {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "possibly_truncated": false}
+          {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false},
+          {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": true, "next_token": null, "provider_total": null, "raw_examined_count": null, "possibly_truncated": false}
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],

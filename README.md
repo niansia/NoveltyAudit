@@ -38,7 +38,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
 - Active backward/forward citation expansion followed by deterministic direct-citation and co-citation discovery, with endpoint coverage observations, an explicit observation window, a high-citation base-rate guard, textual promotion gates, and separate post-cutoff landscape bridges.
-- Public Tier-2 PDF/HTML/text acquisition with private-address blocking, response-size limits, extracted-text files, cryptographic hashes, and evidence-to-acquisition validation.
+- Public Tier-2 PDF/HTML/text acquisition with DNS-pinned public-address connections, actual-peer verification, response-size limits, extracted-text files, cryptographic hashes, and evidence-to-acquisition validation.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
 - Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
@@ -59,7 +59,7 @@ python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.tx
 
 Claude Code users can copy it to `~/.claude/skills/scholarly-novelty-audit`; cross-agent installations commonly use `~/.agents/skills/scholarly-novelty-audit`. The folder must remain named `scholarly-novelty-audit` to satisfy the Agent Skills specification.
 
-Release assets include a `.sha256` sidecar. Verify it before installation. The tag workflow rebuilds and validates the runtime ZIP before publishing it; development archives, tests, benchmarks, and local data are never included in that asset.
+Release assets include a `.sha256` sidecar. Verify it before installation. The tag workflow requires clean installation on Ubuntu and macOS, then rebuilds and validates the runtime ZIP before publishing it. The archive includes the complete Apache-2.0 `LICENSE`; development archives, tests, benchmarks, and local data are never included.
 
 ## Use
 
@@ -114,7 +114,7 @@ python scholarly-novelty-audit/scripts/cli.py export \
 
 The bridge threshold above is only an example. Use a documented, field-calibrated value; omit it when none is defensible, in which case co-citation remains `UNASSESSED` and cannot strengthen the verdict.
 
-The host agent gets at most three structured-report attempts. Reusing the same assembly state appends a sequential hash and validation history, so exhaustion cannot be asserted without the preceding attempts. `report-attempt` returns `RETRY_REQUIRED` with exact validation failures before the budget is exhausted; an invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit.
+The host agent gets at most three structured-report attempts. Reusing the same assembly state appends a sequential hash and validation history bound to the immutable `audit_id`, claim ID, claim-freeze hash, and cutoff; a state from another audit is rejected. Exhaustion therefore cannot be asserted without the preceding attempts for that same audit. `report-attempt` returns `RETRY_REQUIRED` with exact validation failures before the budget is exhausted; an invalid final attempt returns terminal `PARTIAL`, caps the conclusion at `INCONCLUSIVE`, and must not be exported as a valid audit.
 
 Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. arXiv offsets advance by raw API entries, never by the smaller post-cutoff eligible set. At least one deterministic query-family run bypasses aggressive provider-side date filtering as a temporal-recall backstop; the earliest-public-date resolver remains the final eligibility gate. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Protocol Coverage deterministically rather than silently becoming evidence of novelty. `BROAD` means broad execution of this bounded protocol; it is not demonstrated recall of all relevant literature.
 
@@ -122,7 +122,7 @@ The MPS search bound is always `K ≤ 3`. “None found” means no qualifying e
 
 Every endpoint pair in every recomputed multi-paper MPS must have a `COMPLETE` citation-graph expansion record. If any pair is missing or `PARTIAL`, the validator permits only `INCONCLUSIVE` and requires the deterministic search-gap marker `GRAPH_EXPANSION_INCOMPLETE:<smaller-paper-id>:<larger-paper-id>`. Consequently, `FRAGMENTED_PRECEDENT` means the relevant pairs were actually expanded and no qualifying historical bridge was verified—not merely that no bridge happened to be present in the initial candidate pool.
 
-A graph call that returns exactly its requested limit is conservatively marked `possibly_truncated`; the expansion becomes `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility.
+Graph providers return an explicit exhaustion signal and continuation token. A call is `possibly_truncated` only when the provider traversal is not exhausted; `returned_count == limit` can remain complete when the provider also proves there is no next page. Non-exhausted calls become `PARTIAL` with reason `LIMIT_REACHED`. OpenAlex backward expansion keeps scanning the complete raw reference-ID list when provider-side filtering makes an early batch underfull, and Semantic Scholar graph expansion follows its `next` offsets. Historical graph calls deliberately omit provider-side date filters, preserve later records for `LANDSCAPE_BRIDGE` review, and let the local earliest-public-date resolver decide eligibility.
 
 Every expansion also records `endpoint_reference_observations`, `observation_window_days`, historical versus landscape candidate IDs, and a deterministic `negative_result_scope`. An empty provider bibliography is a coverage caveat, not evidence that a paper has no references; missing or post-cutoff endpoint dates get separate uninterpretable scopes, and a short window says that co-citation may not yet have had time to form. Therefore “no bridge” can only mean no bridge was verified inside the stated complete provider snapshot and observation window. It is never silent reassurance.
 

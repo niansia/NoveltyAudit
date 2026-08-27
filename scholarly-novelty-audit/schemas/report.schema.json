@@ -156,7 +156,7 @@
               "provider_cutoff_applied": {"type": "boolean"},
               "limit_per_call": {"type": "integer", "minimum": 1, "maximum": 1000},
               "anchor_selection": {"enum": ["LOWER_CITATION_COUNT", "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH"]},
-              "calls": {"type": "array", "items": {"type": "object", "required": ["direction", "anchor_paper_id", "returned_count", "limit", "possibly_truncated"], "properties": {"direction": {"enum": ["BACKWARD", "FORWARD"]}, "anchor_paper_id": {"type": "string"}, "returned_count": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 1000}, "possibly_truncated": {"type": "boolean"}}}},
+              "calls": {"type": "array", "items": {"type": "object", "required": ["direction", "anchor_paper_id", "returned_count", "limit", "exhausted", "next_token", "provider_total", "raw_examined_count", "possibly_truncated"], "properties": {"direction": {"enum": ["BACKWARD", "FORWARD"]}, "anchor_paper_id": {"type": "string"}, "returned_count": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 1000}, "exhausted": {"type": "boolean"}, "next_token": {"type": ["string", "integer", "null"]}, "provider_total": {"type": ["integer", "null"], "minimum": 0}, "raw_examined_count": {"type": ["integer", "null"], "minimum": 0}, "possibly_truncated": {"type": "boolean"}}}},
               "failures": {"type": "array", "items": {"type": "object", "required": ["direction", "anchor_paper_id", "detail"]}},
               "bridge_candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
               "historical_bridge_candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},

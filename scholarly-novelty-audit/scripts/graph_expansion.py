@@ -7,7 +7,7 @@ from typing import Any
 
 from deduplicate import deduplicate
 from normalize_paper import normalize_doi
-from providers.base import ProviderError
+from providers.base import GraphResult, ProviderError
 from resolve_dates import apply_cutoff_many, resolve_earliest_public_date
 
 
@@ -53,6 +53,29 @@ def _observation_window_days(
     return (date.fromisoformat(cutoff) - max(date.fromisoformat(value) for value in dates)).days
 
 
+def _graph_result(
+    provider: Any,
+    method: str,
+    paper_id: str,
+    *,
+    before: str | None,
+    limit: int,
+) -> GraphResult:
+    metadata_method = getattr(provider, f"{method}_with_metadata", None)
+    if callable(metadata_method):
+        result = metadata_method(paper_id, before=before, limit=limit)
+        if not isinstance(result, GraphResult):
+            raise TypeError(f"{method}_with_metadata must return GraphResult")
+        return result
+    papers = getattr(provider, method)(paper_id, before=before, limit=limit)
+    if not isinstance(papers, list):
+        raise TypeError(f"{method} must return a list of papers")
+    # Legacy provider adapters have no explicit continuation signal. Fail closed
+    # instead of converting a short but potentially incomplete list into proof
+    # of provider exhaustion.
+    return GraphResult(papers=papers, exhausted=False, next_token="UNREPORTED")
+
+
 def expand_graph(
     papers: list[dict[str, Any]],
     paper_a_id: str,
@@ -82,13 +105,17 @@ def expand_graph(
     failures: list[dict[str, str]] = []
     calls: list[dict[str, Any]] = []
 
-    def record_call(direction: str, anchor_paper_id: str, results: list[dict[str, Any]]) -> None:
+    def record_call(direction: str, anchor_paper_id: str, result: GraphResult) -> None:
         calls.append({
             "direction": direction,
             "anchor_paper_id": anchor_paper_id,
-            "returned_count": len(results),
+            "returned_count": result.returned_count,
             "limit": limit,
-            "possibly_truncated": len(results) >= limit,
+            "exhausted": result.exhausted,
+            "next_token": result.next_token,
+            "provider_total": result.provider_total,
+            "raw_examined_count": result.raw_examined_count,
+            "possibly_truncated": not result.exhausted,
         })
 
     for endpoint_id in (paper_a_id, paper_b_id):
@@ -97,9 +124,9 @@ def expand_graph(
             # earliest-public-date resolver the historical eligibility gate.
             # Provider publication dates can otherwise hide an eligible preprint
             # whose later journal version falls after the cutoff.
-            results = provider.references(provider_ids[endpoint_id], before=None, limit=limit)
-            record_call("BACKWARD", endpoint_id, results)
-            fetched.extend(results)
+            result = _graph_result(provider, "references", provider_ids[endpoint_id], before=None, limit=limit)
+            record_call("BACKWARD", endpoint_id, result)
+            fetched.extend(result.papers)
         except (ProviderError, NotImplementedError) as error:
             failures.append({"direction": "BACKWARD", "anchor_paper_id": endpoint_id, "detail": str(error)})
 
@@ -109,9 +136,9 @@ def expand_graph(
         other_id = paper_b_id if anchor_id == paper_a_id else paper_a_id
         other_forms = _forms(provider_ids[other_id]) | _forms(other_id)
         try:
-            results = provider.citations(provider_ids[anchor_id], before=None, limit=limit)
-            record_call("FORWARD", anchor_id, results)
-            for candidate in results:
+            result = _graph_result(provider, "citations", provider_ids[anchor_id], before=None, limit=limit)
+            record_call("FORWARD", anchor_id, result)
+            for candidate in result.papers:
                 reference_forms = {form for value in candidate.get("references") or [] for form in _forms(value)}
                 if reference_forms & other_forms:
                     bridge_candidates.append(candidate)

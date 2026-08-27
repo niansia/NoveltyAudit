@@ -938,8 +938,31 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.append(f"graph expansion {expansion_id} partial_reasons disagree with calls and failures")
         if any(item.get("limit") != expansion.get("limit_per_call") for item in calls):
             errors.append(f"graph expansion {expansion_id} call limits disagree with limit_per_call")
-        if any(item.get("possibly_truncated") is not (item.get("returned_count") >= item.get("limit")) for item in calls):
-            errors.append(f"graph expansion {expansion_id} possibly_truncated flags disagree with returned counts")
+        if any(item.get("possibly_truncated") is not (item.get("exhausted") is not True) for item in calls):
+            errors.append(f"graph expansion {expansion_id} possibly_truncated flags disagree with provider exhaustion")
+        if any(item.get("exhausted") is True and item.get("next_token") is not None for item in calls):
+            errors.append(f"graph expansion {expansion_id} exhausted calls cannot retain a continuation token")
+        if any(
+            item.get("exhausted") is False
+            and item.get("next_token") is None
+            and item.get("returned_count", 0) < item.get("limit", 0)
+            for item in calls
+        ):
+            errors.append(f"graph expansion {expansion_id} non-exhausted calls need a continuation token or a full result budget")
+        if any(
+            item.get("raw_examined_count") is not None
+            and item.get("raw_examined_count") < item.get("returned_count", 0)
+            for item in calls
+        ):
+            errors.append(f"graph expansion {expansion_id} raw examined counts cannot be below returned counts")
+        if any(
+            item.get("exhausted") is True
+            and item.get("provider_total") is not None
+            and item.get("raw_examined_count") is not None
+            and item.get("raw_examined_count") < item.get("provider_total")
+            for item in calls
+        ):
+            errors.append(f"graph expansion {expansion_id} exhausted calls must account for the provider total")
         if expansion.get("status") == "COMPLETE" and (expected_partial_reasons or backward_anchors != endpoint_ids or not forward_anchors):
             errors.append(f"COMPLETE graph expansion {expansion_id} lacks required backward/forward calls or contains incomplete work")
         if expansion.get("status") == "PARTIAL" and not expected_partial_reasons:

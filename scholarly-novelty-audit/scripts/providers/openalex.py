@@ -7,7 +7,13 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ProviderError, ScholarProvider, SearchResult, request_json
+from providers.base import (
+    GraphResult,
+    ProviderError,
+    ScholarProvider,
+    SearchResult,
+    request_json,
+)
 
 
 class OpenAlexProvider(ScholarProvider):
@@ -75,9 +81,12 @@ class OpenAlexProvider(ScholarProvider):
         data = request_json(f"{self.endpoint}/{quote(identifier)}", params=self._params())
         return self._convert(data)
 
-    def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def references_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
         reference_ids = self.get_by_id(paper_id).get("references") or []
         results: list[dict[str, Any]] = []
+        raw_examined = 0
         # Provider-side date filtering can make a raw-ID batch underfull. Keep
         # scanning the known reference list until the eligible result budget is
         # full or every raw reference ID has actually been examined.
@@ -85,6 +94,7 @@ class OpenAlexProvider(ScholarProvider):
             if len(results) >= limit:
                 break
             batch = reference_ids[start:start + 100]
+            raw_examined += len(batch)
             filter_value = f"openalex:{'|'.join(batch)}"
             if before:
                 filter_value += f",to_publication_date:{before}"
@@ -93,13 +103,26 @@ class OpenAlexProvider(ScholarProvider):
                 "select": self.select_fields,
             })
             results.extend(self._convert(work) for work in data.get("results") or [])
-        return results[:limit]
+        returned = results[:limit]
+        exhausted = raw_examined >= len(reference_ids) and len(results) <= limit
+        return GraphResult(
+            papers=returned,
+            exhausted=exhausted,
+            provider_total=len(reference_ids),
+            raw_examined_count=raw_examined,
+        )
 
-    def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        return self.references_with_metadata(paper_id, before=before, limit=limit).papers
+
+    def citations_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
         results: list[dict[str, Any]] = []
         cursor: str | None = "*"
         seen_cursors: set[str] = set()
         page_budget = max(limit + 1, 2)
+        provider_total: int | None = None
         for _ in range(page_budget):
             if cursor is None or len(results) >= limit:
                 break
@@ -114,8 +137,20 @@ class OpenAlexProvider(ScholarProvider):
                 "cursor": cursor, "corpus": self.corpus, "select": self.select_fields,
             })
             results.extend(self._convert(work) for work in data.get("results") or [])
-            next_cursor = (data.get("meta") or {}).get("next_cursor")
+            meta = data.get("meta") or {}
+            if provider_total is None and isinstance(meta.get("count"), int):
+                provider_total = meta["count"]
+            next_cursor = meta.get("next_cursor")
             cursor = str(next_cursor) if next_cursor else None
         if cursor is not None and len(results) < limit:
             raise ProviderError("OpenAlex citation pagination exceeded its safety budget")
-        return results[:limit]
+        return GraphResult(
+            papers=results[:limit],
+            exhausted=cursor is None,
+            next_token=cursor,
+            provider_total=provider_total,
+            raw_examined_count=len(results),
+        )
+
+    def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        return self.citations_with_metadata(paper_id, before=before, limit=limit).papers

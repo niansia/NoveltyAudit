@@ -11,3 +11,4 @@
 - Temporal-recall backstops for ordinary search and graph expansion, including raw arXiv traversal, complete OpenAlex reference-ID scanning, and paginated fail-closed graph provider adapters.
 - Deterministic report invariants, stateful three-attempt assembly gating, Markdown/JSON/HTML export, snapshot diffing, and explicit partial or inconclusive terminal states.
 - Agent Skills-compatible metadata, bilingual documentation, adversarial offline tests, clean Linux/macOS install CI, secret scanning, and a byte-for-byte deterministic runtime ZIP.
+- Release hardening adds the complete Apache-2.0 license to the runtime ZIP, tag-gated Ubuntu/macOS clean installation, DNS-pinned and peer-verified full-text connections, audit-identity-bound report retries, and provider-declared graph exhaustion.

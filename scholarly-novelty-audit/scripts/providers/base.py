@@ -8,8 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 
@@ -63,6 +62,21 @@ class SearchResult:
         return None
 
 
+@dataclass
+class GraphResult:
+    """Graph records plus provider-declared traversal exhaustion."""
+
+    papers: list[dict[str, Any]]
+    exhausted: bool
+    next_token: Any | None = None
+    provider_total: int | None = None
+    raw_examined_count: int | None = None
+
+    @property
+    def returned_count(self) -> int:
+        return len(self.papers)
+
+
 class ScholarProvider(ABC):
     name = "base"
 
@@ -84,6 +98,18 @@ class ScholarProvider(ABC):
     def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         raise NotImplementedError(f"{self.name} does not implement citations")
 
+    def references_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
+        papers = self.references(paper_id, before=before, limit=limit)
+        return GraphResult(papers=papers, exhausted=False, next_token="UNREPORTED")
+
+    def citations_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
+        papers = self.citations(paper_id, before=before, limit=limit)
+        return GraphResult(papers=papers, exhausted=False, next_token="UNREPORTED")
+
     def fulltext_or_snippets(self, paper_id: str) -> list[dict[str, Any]]:
         return []
 
@@ -91,7 +117,7 @@ class ScholarProvider(ABC):
         try:
             self.search("scientific method", limit=1)
             return {"provider": self.name, "ok": True}
-        except Exception as error:  # healthchecks must disclose, not crash a full audit
+        except Exception as error:  # noqa: BLE001 - healthchecks must disclose, not crash a full audit
             return {"provider": self.name, "ok": False, "error": str(error)}
 
 
@@ -106,7 +132,7 @@ def request_json(
     if params:
         query = urlencode({key: value for key, value in params.items() if value is not None})
         url = f"{url}{'&' if '?' in url else '?'}{query}"
-    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.3.1 (+https://github.com/)"}
+    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.3.1"}
     request_headers.update(headers or {})
     last_error: Exception | None = None
     for attempt in range(retries):

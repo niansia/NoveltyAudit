@@ -1,11 +1,10 @@
 from urllib.error import HTTPError
 
-import pytest
-
-import providers.base as base
 import providers.arxiv as arxiv_module
 import providers.openalex as openalex_module
 import providers.semantic_scholar as s2_module
+import pytest
+from providers import base
 from providers.arxiv import build_arxiv_query
 from providers.crossref import CrossrefProvider
 from providers.openalex import OpenAlexProvider
@@ -78,6 +77,15 @@ def test_search_result_paginates_by_raw_count_after_local_filtering():
     assert page.raw_returned_count == 100
     assert page.next_token == 100
     assert page.truncated is True
+
+
+def test_graph_result_exposes_explicit_provider_exhaustion():
+    result = base.GraphResult(
+        papers=[{"id": "A"}], exhausted=True, next_token=None,
+        provider_total=1, raw_examined_count=1,
+    )
+    assert result.returned_count == 1
+    assert result.exhausted is True
 
 
 def test_arxiv_pagination_advances_by_raw_entries_not_cutoff_eligible_entries(monkeypatch):
@@ -179,6 +187,20 @@ def test_openalex_references_exhausts_raw_ids_before_claiming_under_limit(monkey
     assert len(requests) == 2
 
 
+def test_openalex_exact_reference_limit_can_be_explicitly_exhausted(monkeypatch):
+    provider = OpenAlexProvider()
+    reference_ids = [f"W{index}" for index in range(1, 101)]
+    monkeypatch.setattr(provider, "get_by_id", lambda _: {"references": reference_ids})
+    monkeypatch.setattr(openalex_module, "request_json", lambda *args, **kwargs: {
+        "results": [openalex_work(identifier) for identifier in reference_ids],
+    })
+    result = provider.references_with_metadata("W-ANCHOR", limit=100)
+    assert result.returned_count == 100
+    assert result.exhausted is True
+    assert result.provider_total == 100
+    assert result.raw_examined_count == 100
+
+
 def test_openalex_citations_follow_cursor_until_exhausted(monkeypatch):
     requests = []
 
@@ -193,6 +215,17 @@ def test_openalex_citations_follow_cursor_until_exhausted(monkeypatch):
     papers = OpenAlexProvider().citations("W-A", limit=3)
     assert [paper["id"] for paper in papers] == ["C1", "C2"]
     assert requests == ["*", "next-1"]
+
+
+def test_openalex_exact_citation_limit_uses_provider_end_signal(monkeypatch):
+    monkeypatch.setattr(openalex_module, "request_json", lambda *args, **kwargs: {
+        "meta": {"count": 2, "next_cursor": None},
+        "results": [openalex_work("C1"), openalex_work("C2")],
+    })
+    result = OpenAlexProvider().citations_with_metadata("W-A", limit=2)
+    assert result.returned_count == 2
+    assert result.exhausted is True
+    assert result.next_token is None
 
 
 def test_openalex_repeated_citation_cursor_is_a_provider_failure(monkeypatch):
@@ -218,6 +251,20 @@ def test_semantic_scholar_graph_edges_follow_next_offset(monkeypatch):
     assert [paper["id"] for paper in papers] == ["R1", "R2"]
     assert [request["offset"] for request in requests] == [0, 1]
     assert all(request["publicationDateOrYear"] == ":2025-01-01" for request in requests)
+
+
+def test_semantic_scholar_exact_graph_limit_uses_provider_end_signal(monkeypatch):
+    monkeypatch.setattr(s2_module, "request_json", lambda *args, **kwargs: {
+        "next": None,
+        "data": [
+            {"citedPaper": {"paperId": "R1", "title": "R1"}},
+            {"citedPaper": {"paperId": "R2", "title": "R2"}},
+        ],
+    })
+    result = SemanticScholarProvider().references_with_metadata("A", limit=2)
+    assert result.returned_count == 2
+    assert result.exhausted is True
+    assert result.next_token is None
 
 
 def test_semantic_scholar_repeated_graph_offset_is_a_provider_failure(monkeypatch):

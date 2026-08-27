@@ -7,8 +7,13 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ProviderError, ScholarProvider, SearchResult, request_json
-
+from providers.base import (
+    GraphResult,
+    ProviderError,
+    ScholarProvider,
+    SearchResult,
+    request_json,
+)
 
 FIELDS = "paperId,title,abstract,authors,year,venue,url,externalIds,citationCount,publicationDate,openAccessPdf,referenceCount"
 EDGE_FIELDS = f"{FIELDS},references"
@@ -56,7 +61,7 @@ class SemanticScholarProvider(ScholarProvider):
         data = request_json(f"{self.endpoint}/paper/{quote(identifier, safe='')}", params={"fields": FIELDS}, headers=self._headers())
         return self._convert(data)
 
-    def _edges(self, identifier: str, kind: str, before: str | None, limit: int) -> list[dict[str, Any]]:
+    def _edges_with_metadata(self, identifier: str, kind: str, before: str | None, limit: int) -> GraphResult:
         key = "citingPaper" if kind == "citations" else "citedPaper"
         papers: list[dict[str, Any]] = []
         offset = 0
@@ -91,10 +96,28 @@ class SemanticScholarProvider(ScholarProvider):
             next_offset = data.get("next")
         if next_offset is not None and len(papers) < limit:
             raise ProviderError("Semantic Scholar graph pagination exceeded its safety budget")
-        return papers[:limit]
+        return GraphResult(
+            papers=papers[:limit],
+            exhausted=next_offset is None,
+            next_token=next_offset,
+            raw_examined_count=len(papers),
+        )
+
+    def _edges(self, identifier: str, kind: str, before: str | None, limit: int) -> list[dict[str, Any]]:
+        return self._edges_with_metadata(identifier, kind, before, limit).papers
 
     def references(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         return self._edges(paper_id, "references", before, limit)
 
     def citations(self, paper_id: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         return self._edges(paper_id, "citations", before, limit)
+
+    def references_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
+        return self._edges_with_metadata(paper_id, "references", before, limit)
+
+    def citations_with_metadata(
+        self, paper_id: str, *, before: str | None = None, limit: int = 100
+    ) -> GraphResult:
+        return self._edges_with_metadata(paper_id, "citations", before, limit)

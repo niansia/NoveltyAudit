@@ -486,9 +486,35 @@ def test_limit_exhausted_graph_expansion_cannot_claim_complete(valid_report):
     report = deepcopy(valid_report)
     expansion = report["search"]["graph_expansions"][0]
     expansion["partial_reasons"] = ["LIMIT_REACHED"]
-    expansion["calls"][0].update({"returned_count": 100, "possibly_truncated": True})
+    expansion["calls"][0].update({
+        "returned_count": 100,
+        "exhausted": False,
+        "next_token": "next-page",
+        "possibly_truncated": True,
+    })
     errors = validate_report(report)
     assert any("COMPLETE graph expansion" in error and "incomplete work" in error for error in errors)
+
+
+def test_graph_exhaustion_metadata_cannot_contradict_itself(valid_report):
+    report = deepcopy(valid_report)
+    call = report["search"]["graph_expansions"][0]["calls"][0]
+    call["next_token"] = "unexpected-next"
+    call["provider_total"] = 10
+    call["raw_examined_count"] = 0
+    errors = validate_report(report)
+    assert any("exhausted calls cannot retain" in error for error in errors)
+    assert any("must account for the provider total" in error for error in errors)
+
+    call.update({
+        "exhausted": False,
+        "possibly_truncated": True,
+        "next_token": None,
+        "provider_total": None,
+        "raw_examined_count": None,
+    })
+    errors = validate_report(report)
+    assert any("need a continuation token or a full result budget" in error for error in errors)
 
 
 def test_schema_rejects_duplicate_candidates_wrong_boolean_and_missing_bibliography_source(valid_report):
@@ -524,10 +550,10 @@ def test_graph_expansion_is_an_auditable_discovery_route(valid_report):
         "limit_per_call": 100,
         "anchor_selection": "CITATION_COUNT_INCOMPLETE_EXPAND_BOTH",
         "calls": [
-            {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "possibly_truncated": False},
-            {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "possibly_truncated": False},
-            {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "possibly_truncated": False},
-            {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "possibly_truncated": False},
+            {"direction": "BACKWARD", "anchor_paper_id": "A", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"direction": "BACKWARD", "anchor_paper_id": "B", "returned_count": 0, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"direction": "FORWARD", "anchor_paper_id": "A", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
+            {"direction": "FORWARD", "anchor_paper_id": "B", "returned_count": 1, "limit": 100, "exhausted": True, "next_token": None, "provider_total": None, "raw_examined_count": None, "possibly_truncated": False},
         ],
         "failures": [],
         "bridge_candidate_ids": ["C"],

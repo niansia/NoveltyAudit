@@ -2,9 +2,16 @@ import sys
 import types
 from pathlib import Path
 
+import fulltext
 import pytest
-
-from fulltext import FullTextError, _extract, acquire_fulltexts, source_candidates
+from fulltext import (
+    FullTextError,
+    _extract,
+    _PinnedHTTPConnection,
+    _PinnedHTTPSConnection,
+    acquire_fulltexts,
+    source_candidates,
+)
 
 
 def test_acquires_html_with_hashes_and_auditable_text(tmp_path):
@@ -63,6 +70,105 @@ def test_source_candidates_reject_local_or_credentialed_urls():
         "https://example.org/public.pdf",
     ]}
     assert source_candidates(paper) == ["https://example.org/public.pdf"]
+
+
+class _FakeSocket:
+    def __init__(self, peer="93.184.216.34"):
+        self.peer = peer
+        self.connected_to = None
+        self.closed = False
+
+    def settimeout(self, _timeout):
+        pass
+
+    def bind(self, _source):
+        pass
+
+    def connect(self, address):
+        self.connected_to = address
+
+    def getpeername(self):
+        return self.peer, 443
+
+    def setsockopt(self, *_args):
+        pass
+
+    def close(self):
+        self.closed = True
+
+
+def test_pinned_connection_defeats_dns_rebinding_between_check_and_connect(monkeypatch):
+    resolutions = []
+    public_record = (
+        fulltext.socket.AF_INET,
+        fulltext.socket.SOCK_STREAM,
+        fulltext.socket.IPPROTO_TCP,
+        "",
+        ("93.184.216.34", 80),
+    )
+    private_record = (
+        fulltext.socket.AF_INET,
+        fulltext.socket.SOCK_STREAM,
+        fulltext.socket.IPPROTO_TCP,
+        "",
+        ("127.0.0.1", 80),
+    )
+
+    def rebinding_resolver(*_args, **_kwargs):
+        resolutions.append(True)
+        return [public_record] if len(resolutions) == 1 else [private_record]
+
+    fake = _FakeSocket()
+    monkeypatch.setattr(fulltext.socket, "getaddrinfo", rebinding_resolver)
+    monkeypatch.setattr(fulltext.socket, "socket", lambda *_args, **_kwargs: fake)
+    connection = _PinnedHTTPConnection("papers.example", 80)
+    connection.connect()
+    assert len(resolutions) == 1
+    assert fake.connected_to == ("93.184.216.34", 80)
+
+
+def test_pinned_connection_rejects_any_private_dns_answer(monkeypatch):
+    records = [
+        (fulltext.socket.AF_INET, fulltext.socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80)),
+        (fulltext.socket.AF_INET, fulltext.socket.SOCK_STREAM, 0, "", ("169.254.169.254", 80)),
+    ]
+    monkeypatch.setattr(fulltext.socket, "getaddrinfo", lambda *_args, **_kwargs: records)
+    with pytest.raises(FullTextError, match="non-public"):
+        _PinnedHTTPConnection("mixed.example", 80)
+
+
+def test_pinned_connection_rejects_unvalidated_private_peer(monkeypatch):
+    records = [
+        (fulltext.socket.AF_INET, fulltext.socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80)),
+    ]
+    fake = _FakeSocket(peer="127.0.0.1")
+    monkeypatch.setattr(fulltext.socket, "getaddrinfo", lambda *_args, **_kwargs: records)
+    monkeypatch.setattr(fulltext.socket, "socket", lambda *_args, **_kwargs: fake)
+    connection = _PinnedHTTPConnection("papers.example", 80)
+    with pytest.raises(FullTextError, match="unvalidated or non-public peer"):
+        connection.connect()
+    assert fake.closed is True
+
+
+def test_pinned_https_preserves_original_hostname_for_tls_sni(monkeypatch):
+    records = [
+        (fulltext.socket.AF_INET, fulltext.socket.SOCK_STREAM, 0, "", ("93.184.216.34", 443)),
+    ]
+    fake = _FakeSocket()
+    captured = {}
+
+    class Context:
+        def wrap_socket(self, sock, *, server_hostname):
+            captured["server_hostname"] = server_hostname
+            return sock
+
+    monkeypatch.setattr(fulltext.socket, "getaddrinfo", lambda *_args, **_kwargs: records)
+    monkeypatch.setattr(fulltext.socket, "socket", lambda *_args, **_kwargs: fake)
+    connection = _PinnedHTTPSConnection("papers.example", 443)
+    connection._context = Context()
+    connection.connect()
+    assert fake.connected_to == ("93.184.216.34", 443)
+    assert captured["server_hostname"] == "papers.example"
 
 
 def test_pdf_dependency_failure_is_explicit(monkeypatch):
