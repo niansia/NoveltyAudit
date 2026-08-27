@@ -37,11 +37,11 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Canonical DOI/arXiv/title normalization and preprint-to-publisher deduplication.
 - Earliest-public-date resolution with strict `ELIGIBLE`, `POST_CUTOFF`, and `DATE_UNCERTAIN` states.
 - Evidence-bound Minimal Prior Set enumeration for sets of one to three papers.
-- Deterministic direct-citation and co-citation bridge discovery, with explicit textual promotion gates.
+- Deterministic direct-citation and co-citation bridge discovery, with a high-citation base-rate guard, explicit textual promotion gates, and separate post-cutoff landscape bridges.
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
 - Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
-- Auditable SearchRun records whose provider counts, pagination, corpus and truncation deterministically derive Search Coverage.
+- Auditable multi-page SearchRun records whose provider counts, saturation stop reasons, corpus and truncation deterministically derive Search Coverage.
 - JSON Schemas, adversarial tests, a golden composition fixture, and a reviewer-grounded benchmark annotation schema.
 
 No paid LLM API is required. Your host agent performs claim decomposition and evidence interpretation; the bundled Python scripts handle deterministic work.
@@ -53,6 +53,7 @@ Download or clone this repository, then copy the actual skill folder from the ch
 ```bash
 mkdir -p ~/.codex/skills
 cp -r ./novelty-audit ~/.codex/skills/novelty-audit
+python -m pip install -r ~/.codex/skills/novelty-audit/requirements.txt
 ```
 
 Claude Code users can copy it to `~/.claude/skills/novelty-audit`; cross-agent installations commonly use `~/.agents/skills/novelty-audit`. The folder must remain named `novelty-audit` to satisfy the Agent Skills specification.
@@ -87,7 +88,8 @@ python novelty-audit/scripts/cli.py dates \
 
 python novelty-audit/scripts/cli.py bridge \
   --papers run/dated.json --paper-a W123 --paper-b W456 \
-  --cutoff 2025-09-18 --output run/bridges.json
+  --cutoff 2025-09-18 --high-citation-threshold 500 \
+  --output run/bridges.json
 
 python novelty-audit/scripts/cli.py verify-citations \
   --input run/report.json --output run/report.verified.json
@@ -96,7 +98,9 @@ python novelty-audit/scripts/cli.py export \
   --input run/report.verified.json --format html --output run/report.html
 ```
 
-Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. Provider counts, truncation and outages lower Search Coverage deterministically rather than silently becoming evidence of novelty.
+The bridge threshold above is only an example. Use a documented, field-calibrated value; omit it when none is defensible, in which case co-citation remains `UNASSESSED` and cannot strengthen the verdict.
+
+Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. The search plan follows provider pagination until exhaustion, no-new-results saturation, or an explicit page budget. Provider counts, incomplete obligations, unsaturated runs, truncation, and outages lower Search Coverage deterministically rather than silently becoming evidence of novelty.
 
 ## Verdicts
 

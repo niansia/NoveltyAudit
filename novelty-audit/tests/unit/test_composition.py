@@ -35,7 +35,7 @@ def test_direct_precedent_and_sensitivity():
 def test_bridge_controls_composition_verdict():
     mps = [{"paper_ids": ["A", "B"], "size": 2}]
     assert classify(mps, []) == "FRAGMENTED_PRECEDENT"
-    assert classify(mps, [{"type": "CO_CITATION", "paper_ids": ["A", "B"], "graph_verified": True}]) == "PLAUSIBLE_COMPOSITION_RISK"
+    assert classify(mps, [{"type": "CO_CITATION", "paper_ids": ["A", "B"], "graph_verified": True, "cutoff_status": "ELIGIBLE", "base_rate_status": "PASSED"}]) == "PLAUSIBLE_COMPOSITION_RISK"
     assert classify(mps, [{"type": "COMBINATION_BRIDGE", "paper_ids": ["A", "B"], "text_verified": True, "evidence_ids": ["E"]}]) == "STRONG_COMPOSITION_RISK"
     assert classify(mps, [{"type": "COMBINATION_BRIDGE", "paper_ids": ["A", "B"], "text_verified": False, "evidence_ids": []}]) == "FRAGMENTED_PRECEDENT"
 

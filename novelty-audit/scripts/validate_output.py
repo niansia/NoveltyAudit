@@ -5,15 +5,18 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import date, datetime
 import hashlib
+from itertools import combinations
 import json
+import re
 from typing import Any
 
-from composition import GRAPH_BRIDGES, HARD_COVERAGE, TEXTUAL_BRIDGES, criticality_sensitivity, solve_mps
-from citation_graph import relation_route_exists
+from composition import GRAPH_BRIDGES, HARD_COVERAGE, TEXTUAL_BRIDGES, bridge_strength, criticality_sensitivity, solve_mps
+from citation_graph import find_bridges, graph_bridge_qualifies, relation_route_exists
 from export_report import to_html, to_markdown, validate_user_output
-from normalize_paper import normalize_arxiv_id, normalize_doi
+from normalize_paper import normalize_arxiv_id, normalize_doi, normalize_title
 from resolve_dates import apply_cutoff
 from search_coverage import derive_search_coverage
+from schema_validation import validate_report_schema
 
 
 CLASSIFICATIONS = {
@@ -56,8 +59,11 @@ def candidate_snapshot_hash(papers: list[dict[str, Any]]) -> str:
 
 
 def validate_report(report: dict[str, Any]) -> list[str]:
+    schema_errors = validate_report_schema(report)
+    if schema_errors:
+        return schema_errors
     errors: list[str] = []
-    for field in ("schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "author_bibliography", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"):
+    for field in ("schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "author_bibliography", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "landscape_bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"):
         if field not in report:
             errors.append(f"missing required field: {field}")
     if errors:
@@ -79,7 +85,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     for field in ("classification", "novelty_risk", "search_coverage", "evidence_confidence", "main_concern", "evidence_ids", "decided_at"):
         if field not in verdict:
             errors.append(f"verdict missing required field: {field}")
-    for field in ("providers", "query_families", "query_runs", "failures", "gaps", "obligations", "coverage_derivation"):
+    for field in ("providers", "query_families", "query_runs", "failures", "gaps", "obligations", "bridge_policy", "coverage_derivation", "saturated"):
         if field not in report["search"]:
             errors.append(f"search missing required field: {field}")
     for index, provider in enumerate(report["search"].get("providers") or []):
@@ -184,7 +190,41 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             matched = str(matched)
             if entry.get("match_basis") == "NONE":
                 errors.append(f"author bibliography entry {index} with a match cannot use match_basis NONE")
-            derived_bibliography_ids.add(matched)
+            paper = papers.get(matched)
+            raw = str(entry.get("raw_entry") or "")
+            basis = entry.get("match_basis")
+            verified_match = False
+            if not paper:
+                errors.append(f"author bibliography entry {index} references unknown candidate {matched}")
+            elif basis == "DOI":
+                doi_candidates = re.findall(r"10\.\d{4,9}/[^\s\]\[<>\"']+", raw, flags=re.I)
+                verified_match = bool(paper.get("doi")) and normalize_doi(paper.get("doi")) in {
+                    normalize_doi(value) for value in doi_candidates
+                }
+            elif basis == "ARXIV_ID":
+                arxiv_candidates = re.findall(r"(?:arxiv:\s*)?([a-z-]+/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?", raw, flags=re.I)
+                verified_match = bool(paper.get("arxiv_id")) and normalize_arxiv_id(paper.get("arxiv_id")) in {
+                    normalize_arxiv_id(value) for value in arxiv_candidates
+                }
+            elif basis == "TITLE_AUTHOR":
+                normalized_raw = normalize_title(raw)
+                title = normalize_title(paper.get("title"))
+                authors = paper.get("authors") or []
+                surnames = {
+                    normalize_title((author.get("name") if isinstance(author, dict) else author)).split(" ")[-1]
+                    for author in authors
+                    if normalize_title(author.get("name") if isinstance(author, dict) else author)
+                }
+                raw_years = set(re.findall(r"\b(?:18|19|20)\d{2}\b", raw))
+                author_ok = not surnames or bool(surnames & set(normalized_raw.split()))
+                year_ok = not raw_years or not paper.get("year") or str(paper.get("year")) in raw_years
+                verified_match = bool(title) and title in normalized_raw and author_ok and year_ok
+            elif basis == "MANUAL":
+                errors.append(f"author bibliography entry {index} MANUAL match cannot establish prior awareness")
+            if verified_match:
+                derived_bibliography_ids.add(matched)
+            elif basis != "MANUAL":
+                errors.append(f"author bibliography entry {index} {basis} match is not independently reproduced")
     if bibliography_ids != derived_bibliography_ids:
         errors.append("author_bibliography.normalized_paper_ids disagrees with bibliography entries")
     if list(bibliography.get("unmatched_entries") or []) != derived_unmatched_entries:
@@ -195,6 +235,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append("author_bibliography cannot contain normalized IDs when it was not provided")
     if bibliography.get("status") == "NOT_PROVIDED" and bibliography_entries:
         errors.append("author_bibliography cannot contain entries when it was not provided")
+    bridge_policy = report["search"].get("bridge_policy") or {}
+    high_citation_threshold = bridge_policy.get("high_citation_threshold")
+    if bridge_policy.get("status") == "CALIBRATED" and not isinstance(high_citation_threshold, int):
+        errors.append("CALIBRATED bridge policy requires an integer high_citation_threshold")
+    if bridge_policy.get("status") == "UNCONFIGURED" and high_citation_threshold is not None:
+        errors.append("UNCONFIGURED bridge policy cannot claim a high_citation_threshold")
     manifest = report.get("run_manifest") or {}
     for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"):
         if not manifest.get(field):
@@ -385,6 +431,36 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 paper["coverage"][facet] = {"status": "UNKNOWN", "evidence_ids": []}
     computed_mps = solve_mps(verified_papers, critical, max_size=3, strict=True, require_evidence=True) if critical else []
     computed_size = computed_mps[0]["size"] if computed_mps else None
+    recomputed_graph_bridges: list[dict[str, Any]] = []
+    for mps in computed_mps:
+        for paper_a, paper_b in combinations([str(value) for value in mps.get("paper_ids") or []], 2):
+            recomputed_graph_bridges.extend(find_bridges(
+                paper_a, paper_b, papers.values(), cutoff=cutoff,
+                high_citation_threshold=high_citation_threshold,
+            ))
+    def bridge_route_key(bridge: dict[str, Any]) -> tuple[str, tuple[str, ...], str]:
+        kind = str(bridge.get("underlying_type") or bridge.get("type") or "").upper()
+        return kind, tuple(sorted(str(value) for value in bridge.get("paper_ids") or [])), str(bridge.get("source_paper_id") or "")
+    unique_recomputed = {bridge_route_key(item): item for item in recomputed_graph_bridges}
+    recomputed_graph_bridges = list(unique_recomputed.values())
+    expected_landscape = {
+        bridge_route_key(item) for item in recomputed_graph_bridges
+        if item.get("type") == "LANDSCAPE_BRIDGE"
+    }
+    submitted_landscape = {
+        bridge_route_key(item) for item in report.get("landscape_bridges") or []
+        if isinstance(item, dict)
+    }
+    if submitted_landscape != expected_landscape:
+        missing = sorted(expected_landscape - submitted_landscape)
+        extra = sorted(submitted_landscape - expected_landscape)
+        errors.append(f"landscape bridges disagree with deterministic citation graph; missing={missing}, extra={extra}")
+    for bridge in report.get("landscape_bridges") or []:
+        if not relation_route_exists(bridge, papers.values()):
+            errors.append(f"landscape bridge {bridge_route_key(bridge)} is not reproduced by source references")
+        source = papers.get(str(bridge.get("source_paper_id") or ""))
+        if source and source.get("cutoff_status") == "ELIGIBLE":
+            errors.append(f"landscape bridge {bridge_route_key(bridge)} incorrectly uses a cutoff-eligible source")
     submitted_size = min(valid_sizes) if valid_sizes else None
     if submitted_size is not None and computed_size != submitted_size:
         errors.append(f"submitted MPS size {submitted_size} is not globally minimal; recomputed size is {computed_size}")
@@ -394,6 +470,18 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append("classification conflicts with recomputed one-paper direct precedent")
     if computed_size in {2, 3} and classification not in {"STRONG_COMPOSITION_RISK", "PLAUSIBLE_COMPOSITION_RISK", "FRAGMENTED_PRECEDENT"}:
         errors.append("classification conflicts with recomputed multi-paper prior set")
+    if computed_size is None and classification not in {"RESIDUAL_NOVELTY", "INCONCLUSIVE"}:
+        errors.append("classification conflicts with absence of any recomputed Minimal Prior Set")
+    if classification == "FRAGMENTED_PRECEDENT" and computed_size not in {2, 3}:
+        errors.append("FRAGMENTED_PRECEDENT requires a recomputed two- or three-paper Minimal Prior Set")
+    for mps in computed_mps:
+        ids = [str(value) for value in mps.get("paper_ids") or []]
+        recomputed_strength = bridge_strength(recomputed_graph_bridges, ids)
+        submitted_strength = bridge_strength(report.get("bridges") or [], ids)
+        if recomputed_strength == "GRAPH" and submitted_strength == "NONE":
+            errors.append(f"report omits a deterministic graph bridge for MPS {ids}")
+        if classification == "FRAGMENTED_PRECEDENT" and recomputed_strength == "GRAPH":
+            errors.append(f"FRAGMENTED_PRECEDENT hides a qualifying deterministic graph bridge for MPS {ids}")
     if classification in ADVERSE and not mps_sets:
         errors.append(f"{classification} requires a Minimal Prior Set")
     if classification == "DIRECT_PRECEDENT" and (not valid_sizes or min(valid_sizes) != 1):
@@ -409,6 +497,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     eligible_bridges: list[dict[str, Any]] = []
     for bridge in report["bridges"]:
         bridge_type = str(bridge.get("type", "")).upper()
+        bridge_eligible = bridge.get("cutoff_status", "ELIGIBLE") == "ELIGIBLE"
         expected_provenance = "text" if bridge_type in TEXTUAL_BRIDGES else "graph" if bridge_type in GRAPH_BRIDGES else None
         if bridge.get("provenance_type") != expected_provenance:
             errors.append(f"bridge {bridge_type} has invalid provenance_type")
@@ -422,6 +511,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 errors.append(f"bridge {bridge_type} references unknown source paper {source_id}")
             elif source_paper.get("cutoff_status") != "ELIGIBLE":
                 errors.append(f"bridge {bridge_type} source paper {source_id} is not cutoff-eligible")
+                bridge_eligible = False
             elif not source_paper.get("earliest_public_date"):
                 errors.append(f"bridge {bridge_type} source paper {source_id} lacks a verified earliest public date")
         if bridge_type in GRAPH_BRIDGES and source_id in papers:
@@ -432,11 +522,17 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 graph_relation_ok = False
             if not bridge.get("graph_verified") or not graph_relation_ok:
                 errors.append(f"graph bridge {bridge_type} is not reproduced by source references")
+            if bridge_type == "CO_CITATION":
+                matching = next((item for item in recomputed_graph_bridges if bridge_route_key(item) == bridge_route_key(bridge)), None)
+                if not matching or bridge.get("base_rate_status") != matching.get("base_rate_status"):
+                    errors.append("CO_CITATION base-rate assessment disagrees with deterministic citation counts and policy")
+                if not graph_bridge_qualifies(matching or bridge):
+                    bridge_eligible = False
         if bridge_type in TEXTUAL_BRIDGES and source_id in papers:
             textual_route_ok = relation_route_exists(bridge, papers.values())
             if not textual_route_ok:
                 errors.append(f"textual bridge {bridge_type} is not grounded by the source citation route")
-        if bridge.get("cutoff_status", "ELIGIBLE") == "ELIGIBLE" and source_id in papers and papers[source_id].get("cutoff_status") == "ELIGIBLE":
+        if bridge_eligible and source_id in papers and papers[source_id].get("cutoff_status") == "ELIGIBLE":
             eligible_bridges.append(bridge)
         if bridge_type in TEXTUAL_BRIDGES:
             if bridge.get("source_rechecked_as_candidate") is not True:
@@ -606,7 +702,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     query_ids: list[str] = []
     facet_query_families = {facet: set() for facet in critical}
     for index, run in enumerate(query_runs):
-        required = ("query_id", "provider", "family", "query", "reason", "target_facets", "retrieved_at", "returned_count", "total_count", "truncated", "pagination", "corpus", "paper_ids", "canonical_paper_ids", "status")
+        required = ("query_id", "provider", "family", "query", "reason", "target_facets", "retrieved_at", "returned_count", "total_count", "truncated", "pagination", "corpus", "saturation_stop_reason", "paper_ids", "canonical_paper_ids", "status")
         if not isinstance(run, dict) or any(field not in run for field in required):
             errors.append(f"query run {index} is missing required reproducibility fields")
             continue
@@ -652,6 +748,14 @@ def validate_report(report: dict[str, Any]) -> list[str]:
                 errors.append(f"query {query_id} failure or truncation is not disclosed")
     if len(query_ids) != len(set(query_ids)) or any(not value.strip() for value in query_ids):
         errors.append("query_id values must be non-empty and unique")
+    recomputed_saturated = bool(query_runs) and all(
+        isinstance(run, dict)
+        and run.get("status") == "ok"
+        and run.get("saturation_stop_reason") in {"PROVIDER_EXHAUSTED", "NO_NEW_RESULTS"}
+        for run in query_runs
+    )
+    if report["search"].get("saturated") is not recomputed_saturated:
+        errors.append(f"search.saturated disagrees with SearchRun stop reasons: expected {recomputed_saturated}")
     for facet, families in facet_query_families.items():
         if len(families) < 2:
             errors.append(f"critical facet {facet} is covered by fewer than two query families")

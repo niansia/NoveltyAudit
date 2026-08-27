@@ -19,12 +19,20 @@ def derive_search_coverage(search: dict[str, Any]) -> dict[str, Any]:
     providers &= PRIMARY_PROVIDERS
     families = {str(run.get("family")) for run in successful if run.get("family")}
     failed_runs = [str(run.get("query_id")) for run in runs if run.get("status") != "ok"]
+    incomplete = [
+        str(item.get("id")) for item in search.get("obligations") or []
+        if isinstance(item, dict) and item.get("status") != "COMPLETE"
+    ]
     metadata_missing = []
     for run in runs:
-        required = {"returned_count", "total_count", "truncated", "pagination", "corpus"}
+        required = {"returned_count", "total_count", "truncated", "pagination", "corpus", "saturation_stop_reason"}
         if not required <= set(run) or not isinstance(run.get("returned_count"), int) or not isinstance(run.get("truncated"), bool) or not isinstance(run.get("pagination"), dict):
             metadata_missing.append(str(run.get("query_id") or "<unknown>"))
     truncated = [str(run.get("query_id")) for run in runs if run.get("truncated") is True]
+    unsaturated_runs = [
+        str(run.get("query_id")) for run in successful
+        if run.get("saturation_stop_reason") not in {"PROVIDER_EXHAUSTED", "NO_NEW_RESULTS"}
+    ]
     non_all_openalex = [
         str(run.get("query_id")) for run in successful
         if run.get("provider") == "openalex" and run.get("corpus") != "all"
@@ -41,10 +49,16 @@ def derive_search_coverage(search: dict[str, Any]) -> dict[str, Any]:
         reasons.append(f"failed query runs: {failed_runs}")
     if truncated:
         reasons.append(f"truncated query runs: {truncated}")
+    if unsaturated_runs:
+        reasons.append(f"query runs lack a saturation stop: {unsaturated_runs}")
+    if incomplete:
+        reasons.append(f"incomplete search obligations: {incomplete}")
     if metadata_missing:
         reasons.append(f"SearchRun metadata missing: {metadata_missing}")
     if non_all_openalex:
         reasons.append(f"OpenAlex did not search corpus=all: {non_all_openalex}")
+    if search.get("saturated") is not True:
+        reasons.append("search saturation was not established")
     broad = not reasons and bool(runs)
     if broad:
         level = "BROAD"

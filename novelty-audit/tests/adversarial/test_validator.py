@@ -18,8 +18,8 @@ def test_rejects_missing_nested_schema_fields(valid_report):
     report["search"].pop("providers")
     report["excluded"].pop("other")
     errors = validate_report(report)
-    assert any("search missing required field: providers" in error for error in errors)
-    assert any("excluded missing required field: other" in error for error in errors)
+    assert any("'providers' is a required property" in error for error in errors)
+    assert any("'other' is a required property" in error for error in errors)
 
 
 def test_rejects_paper_missing_machine_contract_fields(valid_report):
@@ -27,8 +27,8 @@ def test_rejects_paper_missing_machine_contract_fields(valid_report):
     report["papers"][0].pop("title")
     report["papers"][0].pop("providers")
     errors = validate_report(report)
-    assert any("missing required field: title" in error for error in errors)
-    assert any("missing required field: providers" in error for error in errors)
+    assert any("'title' is a required property" in error for error in errors)
+    assert any("'providers' is a required property" in error for error in errors)
 
 
 def test_rejects_high_verdict_without_evidence(valid_report):
@@ -65,7 +65,7 @@ def test_rejects_eligible_paper_without_verified_date(valid_report):
 
 def test_rejects_graph_only_bridge_as_strong(valid_report):
     report = deepcopy(valid_report)
-    report["bridges"] = [{"type": "CO_CITATION", "paper_ids": ["A", "B"], "cutoff_status": "ELIGIBLE", "text_verified": False}]
+    report["bridges"] = [{"type": "CO_CITATION", "provenance_type": "graph", "paper_ids": ["A", "B"], "source_paper_id": "C", "cutoff_status": "ELIGIBLE", "graph_verified": True, "text_verified": False, "evidence_ids": [], "base_rate_status": "UNASSESSED"}]
     assert any("requires an eligible textual bridge" in error for error in validate_report(report))
 
 
@@ -78,7 +78,7 @@ def test_rejects_unrelated_textual_bridge_as_strong(valid_report):
 def test_rejects_bridge_without_source_paper(valid_report):
     report = deepcopy(valid_report)
     report["bridges"][0].pop("source_paper_id")
-    assert any("lacks source_paper_id" in error for error in validate_report(report))
+    assert any("'source_paper_id' is a required property" in error for error in validate_report(report))
 
 
 def test_textual_bridge_source_must_be_rechecked_as_candidate(valid_report):
@@ -90,7 +90,7 @@ def test_textual_bridge_source_must_be_rechecked_as_candidate(valid_report):
 def test_rejects_fabricated_co_citation(valid_report):
     report = deepcopy(valid_report)
     report["verdict"]["classification"] = "PLAUSIBLE_COMPOSITION_RISK"
-    report["bridges"] = [{"type": "CO_CITATION", "paper_ids": ["A", "B"], "source_paper_id": "C", "cutoff_status": "ELIGIBLE", "graph_verified": True, "text_verified": False}]
+    report["bridges"] = [{"type": "CO_CITATION", "provenance_type": "graph", "paper_ids": ["A", "B"], "source_paper_id": "C", "cutoff_status": "ELIGIBLE", "graph_verified": True, "text_verified": False, "evidence_ids": [], "base_rate_status": "UNASSESSED"}]
     report["papers"][2]["references"] = []
     assert any("not reproduced by source references" in error for error in validate_report(report))
 
@@ -174,8 +174,7 @@ def test_broad_requires_known_structured_providers_and_query_logs(valid_report):
     report["search"]["providers"] = ["fake-one", "fake-two"]
     report["search"]["query_runs"] = []
     errors = validate_report(report)
-    assert any("structured provider record" in error for error in errors)
-    assert any("Search Coverage must equal deterministic" in error for error in errors)
+    assert any("is not of type 'object'" in error for error in errors)
 
 
 def test_result_evidence_allowed_for_outcome_facet(valid_report):
@@ -196,9 +195,11 @@ def test_rejects_killer_without_negative_evidence_or_valid_awareness(valid_repor
     report = deepcopy(valid_report)
     report["top_killers"][0]["does_not_cover"] = []
     report["top_killers"][0]["prior_awareness"] = "INVALID"
-    errors = validate_report(report)
-    assert any("at least one does_not_cover" in error for error in errors)
-    assert any("invalid prior_awareness" in error for error in errors)
+    assert any("is not one of" in error for error in validate_report(report))
+
+    report = deepcopy(valid_report)
+    report["top_killers"][0]["does_not_cover"] = []
+    assert any("at least one does_not_cover" in error for error in validate_report(report))
 
 
 def test_rejects_tier1_hard_coverage(valid_report):
@@ -281,7 +282,7 @@ def test_broad_coverage_is_recomputed_and_rejects_truncation(valid_report):
 def test_search_run_requires_provider_metadata(valid_report):
     report = deepcopy(valid_report)
     report["search"]["query_runs"][0].pop("total_count")
-    assert any("missing required reproducibility fields" in error for error in validate_report(report))
+    assert any("'total_count' is a required property" in error for error in validate_report(report))
 
 
 def test_direct_precedent_must_appear_in_top_killers(valid_report):
@@ -346,3 +347,50 @@ def test_rejects_provider_failure_hidden_behind_broad_coverage(valid_report):
     report["search"]["failures"] = [{"provider": "openalex", "type": "RATE_LIMIT", "detail": "HTTP 429"}]
     errors = validate_report(report)
     assert any("not linked to a failed or truncated SearchRun" in error for error in errors)
+
+
+def test_fragmented_precedent_requires_recomputed_mps(valid_report):
+    report = deepcopy(valid_report)
+    report["verdict"]["classification"] = "FRAGMENTED_PRECEDENT"
+    report["minimal_prior_sets"] = []
+    report["bridges"] = []
+    report["top_killers"] = []
+    for paper in report["papers"]:
+        paper["coverage"] = {}
+    errors = validate_report(report)
+    assert any("FRAGMENTED_PRECEDENT requires a recomputed" in error for error in errors)
+
+
+def test_cannot_omit_deterministic_graph_bridge_and_downgrade(valid_report):
+    report = deepcopy(valid_report)
+    report["verdict"].update({"classification": "FRAGMENTED_PRECEDENT", "novelty_risk": "MEDIUM"})
+    report["bridges"] = []
+    errors = validate_report(report)
+    assert any("omits a deterministic graph bridge" in error for error in errors)
+    assert any("hides a qualifying deterministic graph bridge" in error for error in errors)
+
+
+def test_broad_rejects_incomplete_obligation_and_unsaturated_flag(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["obligations"][0]["status"] = "INCOMPLETE"
+    report["search"]["saturated"] = False
+    errors = validate_report(report)
+    assert any("coverage_derivation does not match" in error for error in errors)
+    assert any("Search Coverage must equal deterministic" in error for error in errors)
+
+
+def test_schema_rejects_duplicate_candidates_wrong_boolean_and_missing_bibliography_source(valid_report):
+    report = deepcopy(valid_report)
+    report["candidate_ids"].append("A")
+    report["input"]["strict_date"] = "yes"
+    report["author_bibliography"].pop("source")
+    errors = validate_report(report)
+    assert any("has non-unique elements" in error for error in errors)
+    assert any("is not of type 'boolean'" in error for error in errors)
+    assert any("'source' is a required property" in error for error in errors)
+
+
+def test_title_author_bibliography_mapping_is_independently_reproduced(valid_report):
+    report = deepcopy(valid_report)
+    report["author_bibliography"]["entries"][0]["raw_entry"] = "Marine biology field methods (2023)"
+    assert any("TITLE_AUTHOR match is not independently reproduced" in error for error in validate_report(report))

@@ -68,9 +68,9 @@ class ArxivProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None) -> SearchResult:
         requested = min(max(limit, 1), 100)
-        root = self._fetch({"search_query": build_arxiv_query(query), "start": 0, "max_results": requested, "sortBy": "relevance"})
+        root = self._fetch({"search_query": build_arxiv_query(query), "start": int(page_token or 0), "max_results": requested, "sortBy": "relevance"})
         papers = [self._convert(entry) for entry in root.findall(f"{ATOM}entry")]
         if before:
             cutoff = date.fromisoformat(before)

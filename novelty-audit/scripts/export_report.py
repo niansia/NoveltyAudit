@@ -120,6 +120,16 @@ def to_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append("No meaningful historical bridge was verified.")
 
+    lines += ["", "## Present-day Landscape Bridges", ""]
+    if report.get("landscape_bridges"):
+        for bridge in report["landscape_bridges"]:
+            lines.append(
+                f"- {_md_inline(bridge.get('underlying_type'))}: papers {_md_join(bridge.get('paper_ids') or [])}; "
+                f"source {_md_inline(bridge.get('source_paper_id'))} is {_md_inline(bridge.get('cutoff_status'))} and does not affect the historical verdict."
+            )
+    else:
+        lines.append("No post-cutoff or date-uncertain bridge was recorded.")
+
     lines += [
         "", "## Residual Novelty", "", _md_inline(report.get("residual_novelty") or "Not established."),
         "", "## Defensible Claim Rewrite", "", _md_inline(_rewrite_text(report) or "No rewrite recorded."),
@@ -171,6 +181,14 @@ def to_html(report: dict[str, Any]) -> str:
     if not bridge_items:
         bridge_items.append("<li>No meaningful historical bridge was verified.</li>")
 
+    landscape_items = []
+    for bridge in report.get("landscape_bridges") or []:
+        landscape_items.append(
+            f"<li><strong>{e(bridge.get('underlying_type'))}</strong> · papers {e(', '.join(str(value) for value in bridge.get('paper_ids') or []))} · source {e(bridge.get('source_paper_id'))} is {e(bridge.get('cutoff_status'))} and does not affect the historical verdict</li>"
+        )
+    if not landscape_items:
+        landscape_items.append("<li>No post-cutoff or date-uncertain bridge was recorded.</li>")
+
     gaps = "".join(f"<li>{e(value)}</li>" for value in report.get("search", {}).get("gaps") or []) or "<li>None recorded</li>"
     failures = "".join(f"<li>{e(_failure_text(value))}</li>" for value in report.get("search", {}).get("failures") or []) or "<li>None recorded</li>"
     body = f"""
@@ -191,6 +209,7 @@ def to_html(report: dict[str, Any]) -> str:
   <section><h2>Frozen Claim Map</h2><div class=\"table-wrap\"><table><thead><tr><th>ID</th><th>Type</th><th>Facet</th><th>Critical</th></tr></thead><tbody>{facets}</tbody></table></div></section>
   <section><h2>Top Killer Papers</h2><div class=\"grid\">{''.join(killers)}</div></section>
   <section class=\"split\"><div class=\"card\"><h2>Minimal Prior Set</h2><ul>{''.join(mps_items)}</ul></div><div class=\"card\"><h2>Bridge Evidence</h2><ul>{''.join(bridge_items)}</ul></div></section>
+  <section><div class=\"card\"><h2>Present-day Landscape Bridges</h2><ul>{''.join(landscape_items)}</ul></div></section>
   <section class=\"split\"><div><h2>Residual Novelty</h2><p>{e(report.get('residual_novelty') or 'Not established.')}</p></div><div class=\"rewrite\"><h2>Defensible Claim Rewrite</h2><p>{e(_rewrite_text(report) or 'No rewrite recorded.')}</p></div></section>
   <section class=\"split\"><div><h2>Search Gaps</h2><ul>{gaps}</ul></div><div><h2>Provider Failures</h2><ul>{failures}</ul></div></section>
   <section><h2>Exclusions</h2><div class=\"card keyvals\"><div><span>Post-cutoff</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('post_cutoff') or []) or 'none')}</div><div><span>Date-uncertain</span>{e(', '.join(str(value) for value in report.get('excluded', {}).get('date_uncertain') or []) or 'none')}</div></div></section>

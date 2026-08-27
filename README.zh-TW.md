@@ -20,11 +20,11 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - DOI／arXiv／標題正規化、preprint 與正式版本去重。
 - 最早公開日解析與嚴格 cutoff 狀態。
 - 1–3 篇 evidence-bound Minimal Prior Set 求解。
-- citation graph bridge discovery 與 textual bridge 升格守門。
+- citation graph bridge discovery、高引文 base-rate 防呆、textual bridge 升格守門，以及不影響歷史結論的 post-cutoff landscape bridge。
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
 - 具版本的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
-- 保存 provider 計數、分頁、corpus 與截斷狀態的 SearchRun，並由 validator 自動推導 Search Coverage。
+- 保存 provider 計數、逐頁紀錄、飽和停止原因、corpus 與截斷狀態的 SearchRun，並由 validator 自動推導 Search Coverage。
 - JSON Schemas、golden fixture、測試與 benchmark annotation schema。
 
 核心流程不需要額外付費 LLM API；宿主 agent 負責 claim decomposition 與 evidence interpretation，scripts 只處理可重現的 deterministic 工作。
@@ -36,6 +36,7 @@ Provider key 對基本使用並非必要。`S2_API_KEY` 可降低 Semantic Schol
 ```bash
 mkdir -p ~/.codex/skills
 cp -r ./novelty-audit ~/.codex/skills/novelty-audit
+python -m pip install -r ~/.codex/skills/novelty-audit/requirements.txt
 ```
 
 Claude Code 可改放 `~/.claude/skills/novelty-audit`；跨 agent 慣例可放 `~/.agents/skills/novelty-audit`。實際 skill 資料夾必須叫 `novelty-audit`。

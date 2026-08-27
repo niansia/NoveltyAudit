@@ -38,8 +38,10 @@ class SemanticScholarProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
-        params: dict[str, Any] = {"query": query, "limit": min(max(limit, 1), 100), "fields": FIELDS}
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None) -> SearchResult:
+        params: dict[str, Any] = {"query": query, "limit": min(max(limit, 1), 100), "offset": int(page_token or 0), "fields": FIELDS}
+        if before:
+            params["publicationDateOrYear"] = f":{before}"
         data = request_json(f"{self.endpoint}/paper/search", params=params, headers=self._headers())
         papers = [self._convert(paper) for paper in (data.get("data") or [])[:limit]]
         return SearchResult(

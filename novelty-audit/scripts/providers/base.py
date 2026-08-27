@@ -46,6 +46,17 @@ class SearchResult:
             "corpus": self.corpus,
         }
 
+    @property
+    def next_token(self) -> Any | None:
+        if self.pagination.get("next_cursor"):
+            return self.pagination["next_cursor"]
+        if self.pagination.get("next") is not None:
+            return self.pagination["next"]
+        offset = int(self.pagination.get("offset") or self.pagination.get("start") or 0)
+        if self.total_count is not None and offset + self.returned_count < self.total_count:
+            return offset + self.returned_count
+        return None
+
 
 class ScholarProvider(ABC):
     name = "base"
@@ -54,7 +65,9 @@ class ScholarProvider(ABC):
         return self.search_with_metadata(query, before=before, limit=limit).papers
 
     @abstractmethod
-    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
+    def search_with_metadata(
+        self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None
+    ) -> SearchResult:
         raise NotImplementedError
 
     def get_by_id(self, identifier: str) -> dict[str, Any]:

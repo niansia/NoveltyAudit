@@ -57,8 +57,13 @@ def merge_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "providers": record.get("providers", []),
             "dates": record.get("dates", []),
         })
-        for key in ("title", "abstract", "venue", "doi", "arxiv_id", "url", "year", "citation_count", "open_access"):
+        for key in ("title", "abstract", "venue", "doi", "arxiv_id", "url", "year", "open_access"):
             merged[key] = _prefer(merged.get(key), record.get(key))
+        citation_counts = [
+            value for value in (merged.get("citation_count"), record.get("citation_count"))
+            if isinstance(value, int) and not isinstance(value, bool)
+        ]
+        merged["citation_count"] = max(citation_counts) if citation_counts else None
         for key in ("providers", "references", "dates", "raw_provenance", "found_by_query_ids"):
             items = merged.get(key, []) + record.get(key, [])
             seen: set[str] = set()

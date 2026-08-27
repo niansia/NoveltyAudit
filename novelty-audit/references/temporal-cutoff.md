@@ -8,4 +8,4 @@ If only a year is known, mark `DATE_UNCERTAIN`. Never invent January 1. In stric
 
 When versions disagree, use the earliest verified public date and retain provenance for the conflicting values.
 
-Do not rely on a provider's publication-date prefilter for strict history: a journal version may appear after the cutoff while its preprint was public before it. Retrieve candidates, merge versions, then apply the deterministic cutoff resolver. The bundled non-preprint providers therefore treat `before` as audit context rather than a destructive retrieval filter; arXiv can safely filter on its v1 date.
+Push the cutoff into provider queries where supported (`to_publication_date` for OpenAlex and `publicationDateOrYear` for Semantic Scholar) to reduce post-cutoff noise. Never rely on that prefilter for strict history: a journal version may appear after the cutoff while its preprint was public before it. Merge versions and apply the deterministic earliest-public-date resolver again downstream. arXiv results are filtered on the verified v1 date after retrieval.

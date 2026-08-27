@@ -12,8 +12,9 @@ Required before recommending a public beta:
 - Claim criticality is frozen and hashed before retrieval; every critical facet receives multiple query families and leave-one-out sensitivity.
 - Cutoff enforcement is deterministic. Post-cutoff and date-uncertain records cannot enter killers, MPS, bridge support, or verdict evidence.
 - MPS minimality and bridge requirements are recomputed rather than trusted from model output.
+- Co-citation cannot strengthen a verdict without complete citation counts and a documented calibrated threshold; post-cutoff graph routes remain visible only as non-adverse landscape bridges.
 - Verdict, Novelty Risk, Search Coverage, and Evidence Confidence obey explicit consistency rules.
-- Query IDs, discovery routes, provider failures, truncation, search gaps, evidence timestamps, and machine-readable status are preserved.
+- Query IDs, discovery routes, provider page history, saturation stop reasons, failures, truncation, search gaps, evidence timestamps, and machine-readable status are preserved.
 - Markdown and HTML contain no novelty percentages, uncalibrated decimals, internal ranking features, raw machine JSON, or unescaped scholarly content.
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.

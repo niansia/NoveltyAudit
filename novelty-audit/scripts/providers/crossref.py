@@ -44,8 +44,10 @@ class CrossrefProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
-        params: dict[str, Any] = {"query.bibliographic": query, "rows": min(max(limit, 1), 100), "select": "DOI,title,abstract,author,published-online,published-print,issued,container-title,URL,is-referenced-by-count,reference"}
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None) -> SearchResult:
+        params: dict[str, Any] = {"query.bibliographic": query, "rows": min(max(limit, 1), 100), "offset": int(page_token or 0), "select": "DOI,title,abstract,author,published-online,published-print,issued,container-title,URL,is-referenced-by-count,reference"}
+        if before:
+            params["filter"] = f"until-pub-date:{before}"
         data = request_json(self.endpoint, params=params)
         message = data.get("message") or {}
         papers = [self._convert(item) for item in message.get("items") or []]

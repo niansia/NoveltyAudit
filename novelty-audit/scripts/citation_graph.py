@@ -50,13 +50,69 @@ def _resolve(value: Any, aliases: dict[str, str]) -> str:
     return str(value)
 
 
-def _eligible(paper: dict[str, Any], cutoff: str | None) -> bool:
+def _cutoff_status(paper: dict[str, Any], cutoff: str | None) -> str:
     if paper.get("cutoff_status"):
-        return paper["cutoff_status"] == "ELIGIBLE"
+        return str(paper["cutoff_status"])
     if not cutoff:
-        return True
+        return "ELIGIBLE"
     value = paper.get("earliest_public_date")
-    return bool(value and date.fromisoformat(value) <= date.fromisoformat(cutoff))
+    if not value:
+        return "DATE_UNCERTAIN"
+    return "ELIGIBLE" if date.fromisoformat(value) <= date.fromisoformat(cutoff) else "POST_CUTOFF"
+
+
+def assess_co_citation(
+    paper_a: dict[str, Any], paper_b: dict[str, Any], high_citation_threshold: int | None
+) -> dict[str, Any]:
+    counts = {
+        str(paper_a.get("id")): paper_a.get("citation_count"),
+        str(paper_b.get("id")): paper_b.get("citation_count"),
+    }
+    numeric = [value for value in counts.values() if isinstance(value, int) and not isinstance(value, bool)]
+    if high_citation_threshold is None or len(numeric) != 2:
+        status = "UNASSESSED"
+    elif any(value >= high_citation_threshold for value in numeric):
+        status = "HIGH_BASE_RATE"
+    else:
+        status = "PASSED"
+    return {"base_rate_status": status, "citation_counts": counts, "high_citation_threshold": high_citation_threshold}
+
+
+def graph_bridge_qualifies(bridge: dict[str, Any]) -> bool:
+    if bridge.get("cutoff_status", "ELIGIBLE") != "ELIGIBLE" or bridge.get("type") == "LANDSCAPE_BRIDGE":
+        return False
+    kind = str(bridge.get("type", "")).upper()
+    return kind != "CO_CITATION" or bridge.get("base_rate_status") == "PASSED"
+
+
+def _bridge_record(
+    kind: str,
+    endpoints: list[str],
+    source_id: str,
+    source: dict[str, Any],
+    paper_a: dict[str, Any],
+    paper_b: dict[str, Any],
+    cutoff: str | None,
+    high_citation_threshold: int | None,
+) -> dict[str, Any]:
+    cutoff_status = _cutoff_status(source, cutoff)
+    result: dict[str, Any] = {
+        "type": kind if cutoff_status == "ELIGIBLE" else "LANDSCAPE_BRIDGE",
+        "provenance_type": "graph",
+        "paper_ids": endpoints,
+        "source_paper_id": source_id,
+        "cutoff_status": cutoff_status,
+        "graph_verified": True,
+        "text_verified": False,
+        "evidence_ids": [],
+        "affects_historical_verdict": cutoff_status == "ELIGIBLE",
+        "base_rate_status": "NOT_APPLICABLE",
+    }
+    if cutoff_status != "ELIGIBLE":
+        result["underlying_type"] = kind
+    if kind == "CO_CITATION":
+        result.update(assess_co_citation(paper_a, paper_b, high_citation_threshold))
+    return result
 
 
 def find_bridges(
@@ -64,6 +120,7 @@ def find_bridges(
     paper_b: str,
     papers: Iterable[dict[str, Any]],
     cutoff: str | None = None,
+    high_citation_threshold: int | None = None,
 ) -> list[dict[str, Any]]:
     index, aliases = _alias_index(list(papers))
     paper_a = _resolve(paper_a, aliases)
@@ -73,16 +130,16 @@ def find_bridges(
     result: list[dict[str, Any]] = []
     a_refs = {_resolve(item, aliases) for item in index[paper_a].get("references") or []}
     b_refs = {_resolve(item, aliases) for item in index[paper_b].get("references") or []}
-    if paper_a in b_refs and _eligible(index[paper_b], cutoff):
-        result.append({"type": "DIRECT_CITATION", "paper_ids": [paper_a, paper_b], "source_paper_id": paper_b, "graph_verified": True, "text_verified": False})
-    if paper_b in a_refs and _eligible(index[paper_a], cutoff):
-        result.append({"type": "DIRECT_CITATION", "paper_ids": [paper_a, paper_b], "source_paper_id": paper_a, "graph_verified": True, "text_verified": False})
+    if paper_a in b_refs:
+        result.append(_bridge_record("DIRECT_CITATION", [paper_a, paper_b], paper_b, index[paper_b], index[paper_a], index[paper_b], cutoff, high_citation_threshold))
+    if paper_b in a_refs:
+        result.append(_bridge_record("DIRECT_CITATION", [paper_a, paper_b], paper_a, index[paper_a], index[paper_a], index[paper_b], cutoff, high_citation_threshold))
     for paper_id, paper in index.items():
-        if paper_id in {paper_a, paper_b} or not _eligible(paper, cutoff):
+        if paper_id in {paper_a, paper_b}:
             continue
         refs = {_resolve(item, aliases) for item in paper.get("references") or []}
         if {paper_a, paper_b} <= refs:
-            result.append({"type": "CO_CITATION", "paper_ids": [paper_a, paper_b], "source_paper_id": paper_id, "graph_verified": True, "text_verified": False})
+            result.append(_bridge_record("CO_CITATION", [paper_a, paper_b], paper_id, paper, index[paper_a], index[paper_b], cutoff, high_citation_threshold))
     return result
 
 

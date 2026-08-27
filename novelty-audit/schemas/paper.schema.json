@@ -21,6 +21,7 @@
     "earliest_public_date": {"type": ["string", "null"], "format": "date"},
     "cutoff_status": {"enum": ["ELIGIBLE", "POST_CUTOFF", "DATE_UNCERTAIN", "ELIGIBILITY_UNCERTAIN"]},
     "references": {"type": "array", "items": {"type": "string"}},
+    "citation_count": {"type": ["integer", "null"], "minimum": 0},
     "found_by_query_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
     "citation_validation": {
       "type": "array",

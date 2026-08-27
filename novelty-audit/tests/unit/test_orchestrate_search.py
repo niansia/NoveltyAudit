@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 
-from providers.base import ProviderError
+from providers.base import ProviderError, SearchResult
 
 
 path = Path(__file__).resolve().parents[2] / "scripts" / "orchestrate_search.py"
@@ -19,6 +19,15 @@ class GoodProvider:
 class FailedProvider:
     def search(self, query, *, before=None, limit=100):
         raise ProviderError("request failed for https://example.test/works: HTTP 429")
+
+
+class PagedProvider:
+    corpus = "all"
+
+    def search_with_metadata(self, query, *, before=None, limit=100, page_token=None):
+        offset = int(page_token or 0)
+        papers = [{"id": f"P{offset}", "title": f"Paper {offset}", "providers": ["paged"], "dates": []}]
+        return SearchResult(papers=papers, total_count=2, pagination={"offset": offset, "limit": 1}, corpus="all")
 
 
 def plan():
@@ -49,3 +58,14 @@ def test_search_plan_all_failures_is_not_a_novelty_verdict():
     assert result["status"] == "FAILED"
     assert result["error_code"] == "ALL_PROVIDERS_FAILED"
     assert result["search"]["coverage_derivation"]["level"] == "NARROW"
+
+
+def test_search_plan_pages_until_provider_exhaustion():
+    value = plan()
+    value.update({"providers": ["paged"], "limit": 1, "max_pages": 3})
+    result = orchestrate_search.run_search_plan(value, {"paged": PagedProvider})
+    run = result["search"]["query_runs"][0]
+    assert run["paper_ids"] == ["P0", "P1"]
+    assert run["pagination"]["stop_reason"] == "PROVIDER_EXHAUSTED"
+    assert run["truncated"] is False
+    assert result["search"]["saturated"] is True

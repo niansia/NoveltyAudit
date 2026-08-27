@@ -54,16 +54,19 @@ class OpenAlexProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100, page_token: Any | None = None) -> SearchResult:
         per_page = min(max(limit, 1), 100)
-        params = self._params() | {"search": query, "per_page": per_page, "page": 1, "corpus": self.corpus, "select": "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"}
+        page_number = int(page_token or 1)
+        params = self._params() | {"search": query, "per_page": per_page, "page": page_number, "corpus": self.corpus, "select": "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"}
+        if before:
+            params["filter"] = f"to_publication_date:{before}"
         data = request_json(self.endpoint, params=params)
         meta = data.get("meta") or {}
         papers = [self._convert(work) for work in (data.get("results") or [])[:limit]]
         return SearchResult(
             papers=papers,
             total_count=meta.get("count"),
-            pagination={"page": meta.get("page", 1), "per_page": meta.get("per_page", per_page), "next_cursor": meta.get("next_cursor")},
+            pagination={"page": meta.get("page", page_number), "per_page": meta.get("per_page", per_page), "next": page_number + 1 if meta.get("count", 0) > page_number * per_page else None},
             corpus=self.corpus,
         )
 

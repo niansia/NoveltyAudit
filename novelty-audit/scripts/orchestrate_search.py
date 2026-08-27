@@ -36,10 +36,13 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
     queries = list(plan.get("queries") or [])
     cutoff = plan.get("cutoff")
     limit = plan.get("limit")
+    max_pages = plan.get("max_pages", 10)
     if not provider_names or not queries:
         raise ValueError("search plan requires providers and queries")
     if not isinstance(limit, int) or limit < 1 or limit > 100:
         raise ValueError("search plan limit must be an explicit integer between 1 and 100")
+    if not isinstance(max_pages, int) or max_pages < 1 or max_pages > 100:
+        raise ValueError("search plan max_pages must be an integer between 1 and 100")
     required_query_fields = {"query_id", "family", "query", "reason", "target_facets", "removed_author_terms"}
     if any(not isinstance(query, dict) or not required_query_fields <= set(query) for query in queries):
         raise ValueError("every planned query requires query_id, family, query, reason, target_facets, and removed_author_terms")
@@ -62,11 +65,40 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
             retrieved_at = _now()
             try:
                 if hasattr(provider, "search_with_metadata"):
-                    page = provider.search_with_metadata(str(query["query"]), before=cutoff, limit=limit)
+                    page_token = None
+                    page_history = []
+                    results = []
+                    seen_provider_ids: set[str] = set()
+                    total_count = None
+                    corpus = getattr(provider, "corpus", "not_applicable")
+                    stop_reason = "PAGE_BUDGET_EXHAUSTED"
+                    for page_index in range(1, max_pages + 1):
+                        page = provider.search_with_metadata(
+                            str(query["query"]), before=cutoff, limit=limit, page_token=page_token
+                        )
+                        total_count = page.total_count
+                        corpus = page.corpus
+                        page_ids = [str(paper.get("id")) for paper in page.papers]
+                        new_papers = [paper for paper in page.papers if str(paper.get("id")) not in seen_provider_ids]
+                        page_history.append({"page_index": page_index, **page.audit_fields(), "paper_ids": page_ids})
+                        if not new_papers and page_index > 1:
+                            stop_reason = "NO_NEW_RESULTS"
+                            break
+                        results.extend(new_papers)
+                        seen_provider_ids.update(str(paper.get("id")) for paper in new_papers)
+                        page_token = page.next_token
+                        if page_token is None:
+                            stop_reason = "PROVIDER_EXHAUSTED"
+                            break
+                    truncated = stop_reason == "PAGE_BUDGET_EXHAUSTED"
+                    pagination = {"pages": page_history, "max_pages": max_pages, "stop_reason": stop_reason}
                 else:  # compatibility for third-party adapters during the 0.3 transition
                     results = provider.search(str(query["query"]), before=cutoff, limit=limit)
-                    page = SearchResult(papers=results, total_count=None)
-                results = page.papers
+                    total_count = len(results)
+                    corpus = getattr(provider, "corpus", "not_applicable")
+                    truncated = False
+                    stop_reason = "PROVIDER_EXHAUSTED"
+                    pagination = {"pages": [], "max_pages": 1, "stop_reason": stop_reason}
                 successful_calls += 1
                 provider_success += 1
                 for paper in results:
@@ -76,10 +108,13 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
                 query_runs.append({
                     **query, "query_id": run_query_id, "logical_query_id": str(query["query_id"]),
                     "provider": provider_name, "retrieved_at": retrieved_at,
-                    **page.audit_fields(), "paper_ids": [str(paper.get("id")) for paper in results], "status": "ok",
+                    "returned_count": len(results), "total_count": total_count,
+                    "truncated": truncated, "pagination": pagination, "corpus": corpus,
+                    "saturation_stop_reason": stop_reason,
+                    "paper_ids": [str(paper.get("id")) for paper in results], "status": "ok",
                 })
-                if page.truncated:
-                    failures.append({"provider": provider_name, "type": "TRUNCATED", "detail": f"{run_query_id} reached the explicit candidate limit"})
+                if truncated:
+                    failures.append({"provider": provider_name, "type": "TRUNCATED", "detail": f"{run_query_id} reached max_pages={max_pages}"})
             except ProviderError as error:
                 provider_failures += 1
                 failure_type = classify_provider_error(error)
@@ -88,6 +123,7 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
                     "provider": provider_name, "retrieved_at": retrieved_at,
                     "returned_count": 0, "total_count": None, "truncated": False,
                     "pagination": {}, "corpus": getattr(provider, "corpus", "not_applicable"),
+                    "saturation_stop_reason": "PROVIDER_ERROR",
                     "paper_ids": [], "status": "failed", "error_code": failure_type,
                 })
                 failures.append({"provider": provider_name, "type": failure_type, "detail": str(error)})
@@ -109,7 +145,12 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
         "query_families": sorted({str(query.get("family")) for query in queries}),
         "query_runs": query_runs, "failures": failures,
         "gaps": ["One or more provider queries failed or were truncated."] if failures else [],
-        "obligations": [], "saturated": False,
+        "obligations": [],
+        "saturated": bool(query_runs) and all(
+            run.get("status") == "ok"
+            and run.get("saturation_stop_reason") in {"PROVIDER_EXHAUSTED", "NO_NEW_RESULTS"}
+            for run in query_runs
+        ),
     }
     coverage = derive_search_coverage(search)
     search["coverage_derivation"] = coverage

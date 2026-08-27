@@ -7,6 +7,8 @@
 - Added a first-class bridge CLI, explicit OpenAlex `corpus=all`, canonical `per_page`, robust arXiv boolean query assembly, and month-precision date handling.
 - Wired benchmark annotations to a prediction schema and metric adapter.
 - Disabled accidental setuptools package discovery and documented clean `git archive` release packaging.
+- Made CLI validation schema-first, then semantic, and closed taxonomy plus omitted-graph-bridge downgrade bypasses.
+- Added provider cutoff pushdown, bounded multi-page saturation, independently reproduced bibliography mappings, calibrated co-citation base-rate guards, and non-adverse `LANDSCAPE_BRIDGE` reporting.
 
 ## 0.2.0 - 2026-08-27
 

@@ -136,12 +136,18 @@ def command_snapshot_diff(args: argparse.Namespace) -> int:
 
 def command_bridge(args: argparse.Namespace) -> int:
     papers = records(read_json(args.papers))
-    graph_bridges = find_bridges(args.paper_a, args.paper_b, papers, cutoff=args.cutoff)
+    discovered = find_bridges(
+        args.paper_a, args.paper_b, papers, cutoff=args.cutoff,
+        high_citation_threshold=args.high_citation_threshold,
+    )
+    graph_bridges = [item for item in discovered if item.get("type") != "LANDSCAPE_BRIDGE"]
+    landscape_bridges = [item for item in discovered if item.get("type") == "LANDSCAPE_BRIDGE"]
     write_json(args.output, {
         "paper_ids": [args.paper_a, args.paper_b],
         "cutoff": args.cutoff,
         "graph_bridges": graph_bridges,
-        "textual_bridge_required": bool(graph_bridges),
+        "landscape_bridges": landscape_bridges,
+        "textual_bridge_required": any(item.get("base_rate_status") != "HIGH_BASE_RATE" for item in graph_bridges),
     })
     return EXIT_COMPLETE
 
@@ -168,7 +174,9 @@ def command_validate(args: argparse.Namespace) -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return EXIT_EVIDENCE_VALIDATION_FAILED
-    print("NoveltyAudit report invariants: OK")
+    print("Schema: OK")
+    print("Invariants: OK")
+    print("NoveltyAudit report: VALID")
     return 0
 
 
@@ -232,6 +240,7 @@ def parser() -> argparse.ArgumentParser:
     bridge.add_argument("--paper-a", required=True)
     bridge.add_argument("--paper-b", required=True)
     bridge.add_argument("--cutoff")
+    bridge.add_argument("--high-citation-threshold", type=int)
     bridge.add_argument("--output", required=True)
     bridge.set_defaults(func=command_bridge)
 

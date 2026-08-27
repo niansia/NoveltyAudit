@@ -72,6 +72,17 @@ def test_openalex_uses_canonical_pagination_and_explicit_all_corpus(monkeypatch)
     assert page.corpus == "all"
 
 
+def test_historical_cutoff_is_pushed_into_provider_queries(monkeypatch):
+    openalex_params = {}
+    s2_params = {}
+    monkeypatch.setattr(openalex_module, "request_json", lambda *args, **kwargs: openalex_params.update(kwargs.get("params") or {}) or {"meta": {"count": 0}, "results": []})
+    monkeypatch.setattr(s2_module, "request_json", lambda *args, **kwargs: s2_params.update(kwargs.get("params") or {}) or {"total": 0, "data": []})
+    OpenAlexProvider().search_with_metadata("mechanism", before="2025-09-18", limit=10)
+    SemanticScholarProvider().search_with_metadata("mechanism", before="2025-09-18", limit=10)
+    assert openalex_params["filter"] == "to_publication_date:2025-09-18"
+    assert s2_params["publicationDateOrYear"] == ":2025-09-18"
+
+
 def test_semantic_scholar_preserves_total_and_next(monkeypatch):
     monkeypatch.setattr(s2_module, "request_json", lambda *args, **kwargs: {"total": 12, "offset": 0, "next": 1, "data": []})
     page = SemanticScholarProvider().search_with_metadata("novel mechanism", limit=1)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from itertools import combinations
 from typing import Any, Iterable
 
+from citation_graph import graph_bridge_qualifies
+
 
 HARD_COVERAGE = {"EXACT", "FUNCTIONAL"}
 TEXTUAL_BRIDGES = {
@@ -145,7 +147,7 @@ def bridge_strength(bridges: Iterable[dict[str, Any]], paper_ids: Iterable[str])
 
     if connected(TEXTUAL_BRIDGES, lambda bridge: bridge.get("text_verified") is True and bool(bridge.get("evidence_ids"))):
         return "TEXTUAL"
-    if connected(GRAPH_BRIDGES, lambda bridge: bridge.get("graph_verified") is True):
+    if connected(GRAPH_BRIDGES, lambda bridge: bridge.get("graph_verified") is True and graph_bridge_qualifies(bridge)):
         return "GRAPH"
     return "NONE"
 
