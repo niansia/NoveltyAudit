@@ -17,3 +17,5 @@ git archive --format=zip --prefix=NoveltyAudit-v0.3.1/ --output=NoveltyAudit-v0.
 ```
 
 Never publish an archive made directly from the working directory. It may contain ignored caches, temporary collision scans, PDF renders, smoke-test output, or other local material. Upload the runtime ZIP for skill installation and the source archive only as a separate developer artifact.
+
+For a tagged release, push `main` first and then push the annotated `v0.3.1` tag. The release workflow reruns the complete test suite, validates the Agent Skill with `skills-ref`, rebuilds the deterministic runtime ZIP, verifies its checksum, and creates the GitHub Release with only the runtime ZIP and SHA-256 sidecar. Do not upload the local development RAR or the metadata-only wheel.

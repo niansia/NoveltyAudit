@@ -49,7 +49,7 @@ No paid LLM API is required. Your host agent performs claim decomposition and ev
 
 ## Install
 
-Download or clone this repository, then copy the actual skill folder from the checkout to a directory your agent discovers:
+Download the `scholarly-novelty-audit-v0.3.1.zip` runtime asset from GitHub Releases and extract it, or clone this repository. Copy the actual skill folder to a directory your agent discovers:
 
 ```bash
 mkdir -p ~/.codex/skills
@@ -59,7 +59,7 @@ python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.tx
 
 Claude Code users can copy it to `~/.claude/skills/scholarly-novelty-audit`; cross-agent installations commonly use `~/.agents/skills/scholarly-novelty-audit`. The folder must remain named `scholarly-novelty-audit` to satisfy the Agent Skills specification.
 
-If upgrading from a pre-0.3.1 checkout, remove or archive the old `novelty-audit` skill folder before installing `scholarly-novelty-audit`. Keeping both folders can cause duplicate or stale skill triggering.
+Release assets include a `.sha256` sidecar. Verify it before installation. The tag workflow rebuilds and validates the runtime ZIP before publishing it; development archives, tests, benchmarks, and local data are never included in that asset.
 
 ## Use
 
