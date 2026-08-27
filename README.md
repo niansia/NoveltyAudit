@@ -41,6 +41,7 @@ The adjacent ecosystem is real and active. OpenNovelty provides a strong evidenc
 - Criticality leave-one-out sensitivity analysis.
 - Report invariant validation and standalone Markdown, JSON, and HTML export.
 - Versioned run manifests and snapshot diffing that separate candidate changes from verdict changes.
+- Auditable SearchRun records whose provider counts, pagination, corpus and truncation deterministically derive Search Coverage.
 - JSON Schemas, adversarial tests, a golden composition fixture, and a reviewer-grounded benchmark annotation schema.
 
 No paid LLM API is required. Your host agent performs claim decomposition and evidence interpretation; the bundled Python scripts handle deterministic work.
@@ -84,6 +85,10 @@ python novelty-audit/scripts/cli.py dates \
   --cutoff 2025-09-18 \
   --output run/dated.json
 
+python novelty-audit/scripts/cli.py bridge \
+  --papers run/dated.json --paper-a W123 --paper-b W456 \
+  --cutoff 2025-09-18 --output run/bridges.json
+
 python novelty-audit/scripts/cli.py verify-citations \
   --input run/report.json --output run/report.verified.json
 python novelty-audit/scripts/cli.py validate --input run/report.verified.json
@@ -91,7 +96,7 @@ python novelty-audit/scripts/cli.py export \
   --input run/report.verified.json --format html --output run/report.html
 ```
 
-Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. A provider outage must lower Search Coverage rather than silently becoming evidence of novelty.
+Provider keys are optional for basic use. `S2_API_KEY` reduces Semantic Scholar throttling. A free `OPENALEX_API_KEY` raises the OpenAlex daily API budget from the anonymous trial allowance to $1/day. `mailto` is not used because OpenAlex retired the polite-pool system in 2026. OpenAlex searches explicitly use `corpus=all`; a core-only run cannot claim `BROAD` coverage. Provider counts, truncation and outages lower Search Coverage deterministically rather than silently becoming evidence of novelty.
 
 ## Verdicts
 
@@ -133,5 +138,7 @@ The release gates are separated into user-trust requirements, benchmark evidence
 ## Contributing
 
 High-value contributions are public reviewer-grounded cases, provider adapters, date golden tests, bridge-evidence edge cases, and report-faithfulness failures. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
+Release archives must be built from tracked Git content; see [release packaging](docs/releasing.md). The repository is installed as an Agent Skill, not as a Python import package.
 
 If NoveltyAudit finds a paper your reviewer could have found first, star the repo.

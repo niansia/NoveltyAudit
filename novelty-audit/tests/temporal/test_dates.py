@@ -28,3 +28,13 @@ def test_cutoff_requires_day_precision():
     with pytest.raises(ValueError):
         apply_cutoff({"dates": []}, "2025")
 
+
+def test_month_precision_prevents_later_exact_date_from_becoming_earliest():
+    paper = {"dates": [
+        {"value": "2025-01", "source": "crossref_published_online"},
+        {"value": "2025-03-15", "source": "crossref_issued"},
+    ]}
+    result = apply_cutoff(paper, "2025-02-01")
+    assert result["earliest_public_date"] is None
+    assert result["cutoff_status"] == "DATE_UNCERTAIN"
+    assert result["date_provenance"]["precision"] == "month"

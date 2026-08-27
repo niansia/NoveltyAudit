@@ -7,12 +7,17 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ScholarProvider, request_json
+from providers.base import ScholarProvider, SearchResult, request_json
 
 
 class OpenAlexProvider(ScholarProvider):
     name = "openalex"
     endpoint = "https://api.openalex.org/works"
+
+    def __init__(self, corpus: str | None = None):
+        self.corpus = corpus or os.getenv("OPENALEX_CORPUS", "all")
+        if self.corpus not in {"core", "expansion", "all"}:
+            raise ValueError("OPENALEX_CORPUS must be core, expansion, or all")
 
     def _params(self) -> dict[str, Any]:
         params: dict[str, Any] = {}
@@ -49,16 +54,24 @@ class OpenAlexProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search(self, query: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        params = self._params() | {"search": query, "per-page": min(max(limit, 1), 100), "select": "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"}
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
+        per_page = min(max(limit, 1), 100)
+        params = self._params() | {"search": query, "per_page": per_page, "page": 1, "corpus": self.corpus, "select": "id,display_name,abstract_inverted_index,authorships,publication_year,publication_date,primary_location,ids,cited_by_count,open_access,referenced_works"}
         data = request_json(self.endpoint, params=params)
-        return [self._convert(work) for work in (data.get("results") or [])[:limit]]
+        meta = data.get("meta") or {}
+        papers = [self._convert(work) for work in (data.get("results") or [])[:limit]]
+        return SearchResult(
+            papers=papers,
+            total_count=meta.get("count"),
+            pagination={"page": meta.get("page", 1), "per_page": meta.get("per_page", per_page), "next_cursor": meta.get("next_cursor")},
+            corpus=self.corpus,
+        )
 
     def get_by_id(self, identifier: str) -> dict[str, Any]:
         data = request_json(f"{self.endpoint}/{quote(identifier)}", params=self._params())
         return self._convert(data)
 
     def citations(self, paper_id: str, *, before: str | None = None) -> list[dict[str, Any]]:
-        params = self._params() | {"filter": f"cites:{paper_id}", "per-page": 100}
+        params = self._params() | {"filter": f"cites:{paper_id}", "per_page": 100, "corpus": self.corpus}
         data = request_json(self.endpoint, params=params)
         return [self._convert(work) for work in data.get("results") or []]

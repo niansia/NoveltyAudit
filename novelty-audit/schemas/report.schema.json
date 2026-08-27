@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/v0.2/report.schema.json",
-  "x-schema-version": "0.2.0",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3/report.schema.json",
+  "x-schema-version": "0.3.0",
   "title": "NoveltyAudit Report",
   "type": "object",
-  "required": ["schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
+  "required": ["schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "author_bibliography", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
   "properties": {
-    "schema_version": {"const": "0.2.0"},
+    "schema_version": {"const": "0.3.0"},
     "audit_id": {"type": "string", "minLength": 1},
     "generated_at": {"type": "string", "format": "date-time"},
     "candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
@@ -14,7 +14,7 @@
       "type": "object",
       "required": ["tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"],
       "properties": {
-        "tool_version": {"const": "0.2.0"},
+        "tool_version": {"const": "0.3.0"},
         "config_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
         "cutoff": {"type": "string", "format": "date"},
         "domain": {"type": "string", "minLength": 1},
@@ -35,6 +35,28 @@
         "field": {"type": "string"},
         "cutoff": {"type": "string", "format": "date"},
         "strict_date": {"type": "boolean"}
+      }
+    },
+    "author_bibliography": {
+      "type": "object",
+      "required": ["status", "source", "entries", "normalized_paper_ids", "unmatched_entries"],
+      "properties": {
+        "status": {"enum": ["PROVIDED", "NOT_PROVIDED"]},
+        "source": {"type": "string"},
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["raw_entry", "matched_paper_id", "match_basis"],
+            "properties": {
+              "raw_entry": {"type": "string", "minLength": 1},
+              "matched_paper_id": {"type": ["string", "null"]},
+              "match_basis": {"enum": ["DOI", "ARXIV_ID", "TITLE_AUTHOR", "MANUAL", "NONE"]}
+            }
+          }
+        },
+        "normalized_paper_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "unmatched_entries": {"type": "array", "items": {"type": "string"}}
       }
     },
     "claim_map": {"$ref": "claim.schema.json"},
@@ -74,14 +96,30 @@
     "defensible_rewrite": {"type": "object", "required": ["text", "prior_coverage_claims"], "properties": {"text": {"type": "string", "minLength": 1}, "prior_coverage_claims": {"type": "array", "items": {"type": "object", "required": ["text", "evidence_ids"], "properties": {"text": {"type": "string", "minLength": 1}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}}}}}},
     "search": {
       "type": "object",
-      "required": ["providers", "query_families", "query_runs", "failures", "gaps", "obligations"],
+      "required": ["providers", "query_families", "query_runs", "failures", "gaps", "obligations", "coverage_derivation"],
       "properties": {
         "providers": {"type": "array", "items": {"type": "object", "required": ["name", "status"]}},
         "query_families": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-        "query_runs": {"type": "array", "items": {"type": "object", "required": ["query_id", "provider", "family", "query", "reason", "target_facets", "removed_author_terms", "retrieved_at", "result_count", "truncated", "status"]}},
+        "query_runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["query_id", "provider", "family", "query", "reason", "target_facets", "removed_author_terms", "retrieved_at", "returned_count", "total_count", "truncated", "pagination", "corpus", "paper_ids", "canonical_paper_ids", "status"],
+            "properties": {
+              "returned_count": {"type": "integer", "minimum": 0},
+              "total_count": {"type": ["integer", "null"], "minimum": 0},
+              "truncated": {"type": "boolean"},
+              "pagination": {"type": "object"},
+              "corpus": {"type": "string", "minLength": 1},
+              "paper_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+              "canonical_paper_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+            }
+          }
+        },
         "failures": {"type": "array", "items": {"type": "object", "required": ["provider", "type", "detail"], "properties": {"provider": {"type": "string"}, "type": {"enum": ["RATE_LIMIT", "TIMEOUT", "HTTP_5XX", "MALFORMED_RESPONSE", "TRUNCATED", "AUTH", "OTHER"]}, "detail": {"type": "string"}}}},
         "gaps": {"type": "array", "items": {"type": "string"}},
-        "obligations": {"type": "array", "items": {"type": "object", "required": ["id", "status", "detail"], "properties": {"id": {"type": "string"}, "status": {"enum": ["COMPLETE", "INCOMPLETE"]}, "detail": {"type": "string"}}}}
+        "obligations": {"type": "array", "items": {"type": "object", "required": ["id", "status", "detail"], "properties": {"id": {"type": "string"}, "status": {"enum": ["COMPLETE", "INCOMPLETE"]}, "detail": {"type": "string"}}}},
+        "coverage_derivation": {"type": "object", "required": ["level", "successful_providers", "successful_families", "reasons"], "properties": {"level": {"enum": ["BROAD", "MODERATE", "NARROW"]}, "successful_providers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "successful_families": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "reasons": {"type": "array", "items": {"type": "string"}}}}
       }
     },
     "excluded": {

@@ -7,7 +7,8 @@ from typing import Any
 
 from deduplicate import deduplicate
 from providers import SEARCH_PROVIDERS
-from providers.base import ProviderError
+from providers.base import ProviderError, SearchResult
+from search_coverage import derive_search_coverage
 
 
 def _now() -> str:
@@ -60,7 +61,12 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
             run_query_id = f"{query['query_id']}:{provider_name}"
             retrieved_at = _now()
             try:
-                results = provider.search(str(query["query"]), before=cutoff, limit=limit)
+                if hasattr(provider, "search_with_metadata"):
+                    page = provider.search_with_metadata(str(query["query"]), before=cutoff, limit=limit)
+                else:  # compatibility for third-party adapters during the 0.3 transition
+                    results = provider.search(str(query["query"]), before=cutoff, limit=limit)
+                    page = SearchResult(papers=results, total_count=None)
+                results = page.papers
                 successful_calls += 1
                 provider_success += 1
                 for paper in results:
@@ -70,9 +76,9 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
                 query_runs.append({
                     **query, "query_id": run_query_id, "logical_query_id": str(query["query_id"]),
                     "provider": provider_name, "retrieved_at": retrieved_at,
-                    "result_count": len(results), "truncated": len(results) >= limit, "status": "ok",
+                    **page.audit_fields(), "paper_ids": [str(paper.get("id")) for paper in results], "status": "ok",
                 })
-                if len(results) >= limit:
+                if page.truncated:
                     failures.append({"provider": provider_name, "type": "TRUNCATED", "detail": f"{run_query_id} reached the explicit candidate limit"})
             except ProviderError as error:
                 provider_failures += 1
@@ -80,7 +86,9 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
                 query_runs.append({
                     **query, "query_id": run_query_id, "logical_query_id": str(query["query_id"]),
                     "provider": provider_name, "retrieved_at": retrieved_at,
-                    "result_count": 0, "truncated": False, "status": "failed", "error_code": failure_type,
+                    "returned_count": 0, "total_count": None, "truncated": False,
+                    "pagination": {}, "corpus": getattr(provider, "corpus", "not_applicable"),
+                    "paper_ids": [], "status": "failed", "error_code": failure_type,
                 })
                 failures.append({"provider": provider_name, "type": failure_type, "detail": str(error)})
         provider_states.append({
@@ -90,20 +98,29 @@ def run_search_plan(plan: dict[str, Any], provider_registry: dict[str, Any] | No
         })
 
     canonical = deduplicate(papers)
+    for run in query_runs:
+        query_id = str(run.get("query_id"))
+        run["canonical_paper_ids"] = [
+            str(paper.get("id")) for paper in canonical
+            if query_id in {str(value) for value in paper.get("found_by_query_ids") or []}
+        ]
+    search = {
+        "providers": provider_states,
+        "query_families": sorted({str(query.get("family")) for query in queries}),
+        "query_runs": query_runs, "failures": failures,
+        "gaps": ["One or more provider queries failed or were truncated."] if failures else [],
+        "obligations": [], "saturated": False,
+    }
+    coverage = derive_search_coverage(search)
+    search["coverage_derivation"] = coverage
     if successful_calls == 0:
-        status, error_code, suggested_coverage = "FAILED", "ALL_PROVIDERS_FAILED", "NARROW"
+        status, error_code = "FAILED", "ALL_PROVIDERS_FAILED"
     elif successful_calls < attempted_calls or failures:
-        status, error_code, suggested_coverage = "PARTIAL", "BACKEND_DEGRADED", "MODERATE"
+        status, error_code = "PARTIAL", "BACKEND_DEGRADED"
     else:
-        status, error_code, suggested_coverage = "COMPLETE", None, "BROAD"
+        status, error_code = "COMPLETE", None
     return {
         "status": status, "error_code": error_code, "cutoff": cutoff,
         "candidate_ids": [str(paper.get("id")) for paper in canonical], "papers": canonical,
-        "search": {
-            "providers": provider_states,
-            "query_families": sorted({str(query.get("family")) for query in queries}),
-            "query_runs": query_runs, "failures": failures,
-            "gaps": ["One or more provider queries failed or were truncated."] if status != "COMPLETE" else [],
-            "suggested_coverage": suggested_coverage,
-        },
+        "search": search,
     }

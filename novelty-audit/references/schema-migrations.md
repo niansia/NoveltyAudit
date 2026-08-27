@@ -1,5 +1,16 @@
 # Schema migrations
 
+## 0.2.0 to 0.3.0
+
+Version 0.3.0 makes Search Coverage and prior awareness independently auditable.
+
+- Replace `query_runs[].result_count` with `returned_count` and provider-reported `total_count`.
+- Add required query-run `pagination`, `corpus`, raw provider `paper_ids`, and post-deduplication `canonical_paper_ids`.
+- Add `search.coverage_derivation`; it must exactly match deterministic validator output.
+- Add top-level `author_bibliography` with raw entries, match bases, canonical matches, a recomputed normalized ID set, and unmatched entries.
+- Criticality sensitivity values are now recomputed, not merely shape-checked.
+- OpenAlex runs record `corpus`; a core-only run cannot derive `BROAD` coverage.
+
 ## 0.1.0 to 0.2.0
 
 Version 0.2.0 strengthens user-facing audit invariants and is intentionally breaking.

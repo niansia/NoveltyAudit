@@ -8,11 +8,12 @@ import hashlib
 import json
 from typing import Any
 
-from composition import GRAPH_BRIDGES, HARD_COVERAGE, TEXTUAL_BRIDGES, solve_mps
+from composition import GRAPH_BRIDGES, HARD_COVERAGE, TEXTUAL_BRIDGES, criticality_sensitivity, solve_mps
 from citation_graph import relation_route_exists
 from export_report import to_html, to_markdown, validate_user_output
 from normalize_paper import normalize_arxiv_id, normalize_doi
 from resolve_dates import apply_cutoff
+from search_coverage import derive_search_coverage
 
 
 CLASSIFICATIONS = {
@@ -56,14 +57,14 @@ def candidate_snapshot_hash(papers: list[dict[str, Any]]) -> str:
 
 def validate_report(report: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    for field in ("schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"):
+    for field in ("schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "author_bibliography", "claim_map", "verdict", "papers", "evidence", "top_killers", "minimal_prior_sets", "bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"):
         if field not in report:
             errors.append(f"missing required field: {field}")
     if errors:
         return errors
 
     verdict = report["verdict"]
-    if report.get("schema_version") != "0.2.0":
+    if report.get("schema_version") != "0.3.0":
         errors.append(f"unsupported schema_version: {report.get('schema_version')}")
     if not str(report.get("audit_id") or "").strip():
         errors.append("audit_id must be non-empty")
@@ -78,9 +79,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     for field in ("classification", "novelty_risk", "search_coverage", "evidence_confidence", "main_concern", "evidence_ids", "decided_at"):
         if field not in verdict:
             errors.append(f"verdict missing required field: {field}")
-    for field in ("providers", "query_families", "query_runs", "failures", "gaps", "obligations"):
+    for field in ("providers", "query_families", "query_runs", "failures", "gaps", "obligations", "coverage_derivation"):
         if field not in report["search"]:
             errors.append(f"search missing required field: {field}")
+    for index, provider in enumerate(report["search"].get("providers") or []):
+        if not isinstance(provider, dict) or not provider.get("name") or not provider.get("status"):
+            errors.append(f"search provider {index} must be a structured provider record")
     for field in ("post_cutoff", "date_uncertain", "other"):
         if field not in report["excluded"]:
             errors.append(f"excluded missing required field: {field}")
@@ -160,11 +164,42 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     for paper_id in papers:
         if paper_id not in candidate_ids:
             errors.append(f"paper {paper_id} does not exist in candidate_ids")
+    bibliography = report.get("author_bibliography") or {}
+    if bibliography.get("status") not in {"PROVIDED", "NOT_PROVIDED"}:
+        errors.append("author_bibliography.status must be PROVIDED or NOT_PROVIDED")
+    bibliography_ids = {str(value) for value in bibliography.get("normalized_paper_ids") or []}
+    bibliography_entries = bibliography.get("entries") or []
+    derived_bibliography_ids: set[str] = set()
+    derived_unmatched_entries: list[str] = []
+    for index, entry in enumerate(bibliography_entries):
+        if not isinstance(entry, dict) or not str(entry.get("raw_entry") or "").strip() or entry.get("match_basis") not in {"DOI", "ARXIV_ID", "TITLE_AUTHOR", "MANUAL", "NONE"}:
+            errors.append(f"author bibliography entry {index} is malformed")
+            continue
+        matched = entry.get("matched_paper_id")
+        if matched in (None, ""):
+            if entry.get("match_basis") != "NONE":
+                errors.append(f"author bibliography entry {index} without a match must use match_basis NONE")
+            derived_unmatched_entries.append(str(entry.get("raw_entry")))
+        else:
+            matched = str(matched)
+            if entry.get("match_basis") == "NONE":
+                errors.append(f"author bibliography entry {index} with a match cannot use match_basis NONE")
+            derived_bibliography_ids.add(matched)
+    if bibliography_ids != derived_bibliography_ids:
+        errors.append("author_bibliography.normalized_paper_ids disagrees with bibliography entries")
+    if list(bibliography.get("unmatched_entries") or []) != derived_unmatched_entries:
+        errors.append("author_bibliography.unmatched_entries disagrees with bibliography entries")
+    if not bibliography_ids <= candidate_ids:
+        errors.append("author_bibliography.normalized_paper_ids must reference canonical candidate IDs")
+    if bibliography.get("status") == "NOT_PROVIDED" and bibliography_ids:
+        errors.append("author_bibliography cannot contain normalized IDs when it was not provided")
+    if bibliography.get("status") == "NOT_PROVIDED" and bibliography_entries:
+        errors.append("author_bibliography cannot contain entries when it was not provided")
     manifest = report.get("run_manifest") or {}
     for field in ("tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints"):
         if not manifest.get(field):
             errors.append(f"run_manifest missing {field}")
-    if manifest.get("tool_version") != "0.2.0":
+    if manifest.get("tool_version") != "0.3.0":
         errors.append("run_manifest.tool_version must match this validator version")
     if manifest.get("cutoff") != cutoff:
         errors.append("run_manifest.cutoff disagrees with input.cutoff")
@@ -245,6 +280,12 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.append(f"top killer {paper_id} must state at least one does_not_cover facet")
         if killer.get("prior_awareness") not in PRIOR_AWARENESS:
             errors.append(f"top killer {paper_id} has invalid prior_awareness")
+        expected_awareness = (
+            "UNKNOWN" if bibliography.get("status") != "PROVIDED" else
+            "ALREADY_CITED" if paper_id in bibliography_ids else "OVERLOOKED"
+        )
+        if killer.get("prior_awareness") != expected_awareness:
+            errors.append(f"top killer {paper_id} prior_awareness disagrees with normalized author bibliography")
         for facet in killer.get("covers") or []:
             status, ids_for_facet = _coverage(papers.get(paper_id, {}), str(facet))
             required_killer_evidence.update(str(value) for value in ids_for_facet)
@@ -357,6 +398,11 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append(f"{classification} requires a Minimal Prior Set")
     if classification == "DIRECT_PRECEDENT" and (not valid_sizes or min(valid_sizes) != 1):
         errors.append("DIRECT_PRECEDENT requires a one-paper MPS")
+    if classification == "DIRECT_PRECEDENT":
+        direct_ids = {str(value) for item in computed_mps if item.get("size") == 1 for value in item.get("paper_ids") or []}
+        killer_ids = {str(item.get("paper_id")) for item in report.get("top_killers") or []}
+        if not direct_ids or not (direct_ids & killer_ids):
+            errors.append("DIRECT_PRECEDENT requires its recomputed one-paper precedent in top_killers")
     if classification in {"STRONG_COMPOSITION_RISK", "PLAUSIBLE_COMPOSITION_RISK"} and (not valid_sizes or min(valid_sizes) not in {2, 3}):
         errors.append(f"{classification} requires a two- or three-paper MPS")
 
@@ -453,6 +499,13 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         for evidence_id in term.get("evidence_ids") or []:
             if str(evidence_id) not in evidence:
                 errors.append(f"ancestor term {term.get('term')} references unknown evidence {evidence_id}")
+        source_paper_id = str(term.get("source_paper_id") or "")
+        if source_paper_id and source_paper_id not in papers:
+            errors.append(f"ancestor term {term.get('term')} references unknown source paper {source_paper_id}")
+        for evidence_id in term.get("evidence_ids") or []:
+            item = evidence.get(str(evidence_id))
+            if item and source_paper_id and str(item.get("canonical_paper_id")) != source_paper_id:
+                errors.append(f"ancestor term {term.get('term')} evidence comes from a different paper")
 
     rewrite = report.get("defensible_rewrite")
     if not isinstance(rewrite, dict) or not str(rewrite.get("text") or "").strip() or not isinstance(rewrite.get("prior_coverage_claims"), list):
@@ -472,6 +525,21 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     removed_facets = [str(item.get("removed_facet")) for item in sensitivity if isinstance(item, dict)]
     if len(sensitivity) != len(critical) or set(removed_facets) != critical or len(removed_facets) != len(set(removed_facets)):
         errors.append("criticality sensitivity must contain exactly one result per critical facet")
+    expected_sensitivity = criticality_sensitivity(
+        verified_papers, sorted(critical), max_size=3, strict=True, require_evidence=True
+    ) if critical else []
+    def normalized_sensitivity(values: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return sorted(
+            [{
+                "removed_facet": str(item.get("removed_facet")),
+                "baseline_size": item.get("baseline_size"),
+                "alternative_size": item.get("alternative_size"),
+                "alternative_classification": item.get("alternative_classification"),
+            } for item in values if isinstance(item, dict)],
+            key=lambda item: item["removed_facet"],
+        )
+    if normalized_sensitivity(sensitivity) != normalized_sensitivity(expected_sensitivity):
+        errors.append("criticality sensitivity disagrees with deterministic leave-one-facet-out recomputation")
 
     post_cutoff = {str(value) for value in report["excluded"].get("post_cutoff") or []}
     date_uncertain = {str(value) for value in report["excluded"].get("date_uncertain") or []}
@@ -534,19 +602,31 @@ def validate_report(report: dict[str, Any]) -> list[str]:
             errors.append(f"search failure {index} must identify provider and failure type")
         else:
             structured_failures.append(failure)
-    if structured_failures and verdict.get("search_coverage") == "BROAD":
-        errors.append("provider failures are incompatible with BROAD search coverage")
-
     query_runs = report["search"].get("query_runs") or []
     query_ids: list[str] = []
     facet_query_families = {facet: set() for facet in critical}
     for index, run in enumerate(query_runs):
-        required = ("query_id", "provider", "family", "query", "reason", "target_facets", "retrieved_at", "result_count", "truncated", "status")
+        required = ("query_id", "provider", "family", "query", "reason", "target_facets", "retrieved_at", "returned_count", "total_count", "truncated", "pagination", "corpus", "paper_ids", "canonical_paper_ids", "status")
         if not isinstance(run, dict) or any(field not in run for field in required):
             errors.append(f"query run {index} is missing required reproducibility fields")
             continue
         query_id = str(run.get("query_id"))
         query_ids.append(query_id)
+        if not isinstance(run.get("returned_count"), int) or run.get("returned_count", -1) < 0:
+            errors.append(f"query {query_id} returned_count must be a non-negative integer")
+        if run.get("total_count") is not None and (not isinstance(run.get("total_count"), int) or run.get("total_count", -1) < 0):
+            errors.append(f"query {query_id} total_count must be null or a non-negative integer")
+        if not isinstance(run.get("pagination"), dict) or not str(run.get("corpus") or "").strip():
+            errors.append(f"query {query_id} lacks auditable pagination or corpus metadata")
+        if len(run.get("paper_ids") or []) != run.get("returned_count"):
+            errors.append(f"query {query_id} returned_count disagrees with paper_ids")
+        if len(run.get("paper_ids") or []) != len(set(str(value) for value in run.get("paper_ids") or [])):
+            errors.append(f"query {query_id} paper_ids must be unique provider-returned IDs")
+        if run.get("total_count") is not None and run.get("returned_count", 0) > run.get("total_count", 0):
+            errors.append(f"query {query_id} returned_count exceeds provider total_count")
+        canonical_for_run = [str(value) for value in run.get("canonical_paper_ids") or []]
+        if len(canonical_for_run) != len(set(canonical_for_run)) or not set(canonical_for_run) <= candidate_ids:
+            errors.append(f"query {query_id} canonical_paper_ids must be unique canonical candidates")
         retrieved_at = parse_datetime(run.get("retrieved_at"), f"search.query_runs[{index}].retrieved_at")
         if retrieved_at and frozen_at:
             retrieved_compare, frozen_compare = comparable(retrieved_at, frozen_at)
@@ -579,43 +659,31 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append("at least one query must remove author-created terminology")
     if not any(run.get("family") == "composition_bridge" for run in query_runs if isinstance(run, dict)):
         errors.append("at least one composition_bridge query is required")
+    for failure in structured_failures:
+        if not any(
+            str(run.get("provider")) == str(failure.get("provider"))
+            and (run.get("status") != "ok" or run.get("truncated") is True)
+            for run in query_runs if isinstance(run, dict)
+        ):
+            errors.append(f"provider failure for {failure.get('provider')} is not linked to a failed or truncated SearchRun")
     query_id_set = set(query_ids)
+    query_papers = {str(run.get("query_id")): {str(value) for value in run.get("canonical_paper_ids") or []} for run in query_runs if isinstance(run, dict)}
     for paper_id, paper in papers.items():
         found_by = {str(value) for value in paper.get("found_by_query_ids") or []}
         if not found_by:
             errors.append(f"paper {paper_id} lacks found_by_query_ids")
         elif not found_by <= query_id_set:
             errors.append(f"paper {paper_id} references unknown discovery query IDs")
+        for query_id in found_by & query_id_set:
+            if paper_id not in query_papers.get(query_id, set()):
+                errors.append(f"paper {paper_id} discovery query {query_id} does not list the paper")
 
-    if verdict.get("search_coverage") == "BROAD":
-        known_providers = {"openalex", "semantic-scholar", "arxiv", "crossref"}
-        successful_names = set()
-        for provider in report["search"].get("providers") or []:
-            if isinstance(provider, dict):
-                if provider.get("status") == "ok" and provider.get("name") in known_providers:
-                    successful_names.add(str(provider.get("name")))
-            else:
-                errors.append("BROAD search coverage requires structured provider records")
-        required_families = {"literal", "mechanism", "problem_function", "ancestor", "composition_bridge"}
-        actual_families = set(report["search"].get("query_families") or [])
-        if len(successful_names - {"", "None"}) < 2:
-            errors.append("BROAD search coverage requires at least two successful providers")
-        if not required_families <= actual_families:
-            errors.append(f"BROAD search coverage is missing query families: {sorted(required_families - actual_families)}")
-        if report["search"].get("saturated") is not True:
-            errors.append("BROAD search coverage requires an explicit saturation check")
-        successful_run_providers = set()
-        successful_run_families = set()
-        for index, run in enumerate(query_runs):
-            if not isinstance(run, dict):
-                continue
-            if run.get("status") == "ok" and run.get("provider") in known_providers:
-                successful_run_providers.add(str(run.get("provider")))
-                successful_run_families.add(str(run.get("family")))
-        if len(successful_run_providers) < 2:
-            errors.append("BROAD search coverage requires successful query logs from two providers")
-        if not required_families <= successful_run_families:
-            errors.append(f"BROAD search query log is missing families: {sorted(required_families - successful_run_families)}")
+    derived_coverage = derive_search_coverage(report["search"])
+    if report["search"].get("coverage_derivation") != derived_coverage:
+        errors.append("search.coverage_derivation does not match deterministic SearchRun derivation")
+    if verdict.get("search_coverage") != derived_coverage["level"]:
+        errors.append(f"verdict Search Coverage must equal deterministic SearchRun derivation: {derived_coverage['level']}")
+
     for format_name, rendered in (("markdown", to_markdown(report)), ("html", to_html(report))):
         for error in validate_user_output(rendered, format_name):
             errors.append(f"{format_name}: {error}")

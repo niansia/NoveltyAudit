@@ -18,7 +18,7 @@ Required before recommending a public beta:
 - API keys never enter artifacts; telemetry is off; private manuscripts are not sent to scholarly providers; secret scanning runs in CI.
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.
 
-Most locally enforceable P0 gates are implemented in schema version 0.2.0 and guarded by offline adversarial tests. Remaining P0 work that needs a larger orchestration layer is tracked below.
+Most locally enforceable P0 gates are implemented in schema version 0.3.0 and guarded by offline adversarial tests. Remaining P0 work that needs a larger orchestration layer is tracked below.
 
 ## P1 — evidence that the product works
 

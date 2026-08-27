@@ -174,8 +174,8 @@ def test_broad_requires_known_structured_providers_and_query_logs(valid_report):
     report["search"]["providers"] = ["fake-one", "fake-two"]
     report["search"]["query_runs"] = []
     errors = validate_report(report)
-    assert any("structured provider records" in error for error in errors)
-    assert any("successful query logs from two providers" in error for error in errors)
+    assert any("structured provider record" in error for error in errors)
+    assert any("Search Coverage must equal deterministic" in error for error in errors)
 
 
 def test_result_evidence_allowed_for_outcome_facet(valid_report):
@@ -217,6 +217,86 @@ def test_rejects_query_before_claim_freeze(valid_report):
     report = deepcopy(valid_report)
     report["search"]["query_runs"][0]["retrieved_at"] = "2025-01-01T00:00:00Z"
     assert any("ran before the claim map was frozen" in error for error in validate_report(report))
+
+
+def test_rejects_freeze_timestamp_after_first_retrieval(valid_report):
+    report = deepcopy(valid_report)
+    report["claim_map"]["frozen_at"] = "2026-08-27T07:11:00Z"
+    assert any("before the claim map was frozen" in error for error in validate_report(report))
+
+
+def test_recomputes_criticality_sensitivity(valid_report):
+    missing = deepcopy(valid_report)
+    missing["criticality_sensitivity"] = []
+    errors = validate_report(missing)
+    assert any("exactly one result per critical facet" in error for error in errors)
+    assert any("deterministic leave-one-facet-out" in error for error in errors)
+
+    fabricated = deepcopy(valid_report)
+    fabricated["criticality_sensitivity"][0]["alternative_size"] = 3
+    assert any("deterministic leave-one-facet-out" in error for error in validate_report(fabricated))
+
+
+def test_recomputes_prior_awareness_from_bibliography(valid_report):
+    report = deepcopy(valid_report)
+    report["top_killers"][0]["prior_awareness"] = "ALREADY_CITED"
+    assert any("disagrees with normalized author bibliography" in error for error in validate_report(report))
+
+
+def test_unknown_awareness_required_when_bibliography_missing(valid_report):
+    report = deepcopy(valid_report)
+    report["author_bibliography"].update({"status": "NOT_PROVIDED", "entries": [], "normalized_paper_ids": []})
+    assert any("disagrees with normalized author bibliography" in error for error in validate_report(report))
+
+
+def test_normalized_bibliography_set_is_recomputed_from_entries(valid_report):
+    report = deepcopy(valid_report)
+    report["author_bibliography"]["normalized_paper_ids"] = ["A"]
+    assert any("disagrees with bibliography entries" in error for error in validate_report(report))
+
+
+def test_rejects_unknown_ancestor_source_and_cross_paper_evidence(valid_report):
+    report = deepcopy(valid_report)
+    report["ancestor_terms"] = [{"term": "memory state", "source_paper_id": "MISSING", "first_observed": "2020-01-01", "evidence_ids": ["E1"]}]
+    errors = validate_report(report)
+    assert any("unknown source paper MISSING" in error for error in errors)
+    assert any("evidence comes from a different paper" in error for error in errors)
+
+
+def test_rejects_invalid_evidence_datetime(valid_report):
+    report = deepcopy(valid_report)
+    report["evidence"][0]["retrieved_at"] = "banana"
+    assert any("must be an ISO 8601 date-time" in error for error in validate_report(report))
+
+
+def test_broad_coverage_is_recomputed_and_rejects_truncation(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["query_runs"][0]["truncated"] = True
+    report["search"]["query_runs"][0]["total_count"] = 100
+    errors = validate_report(report)
+    assert any("coverage_derivation does not match" in error for error in errors)
+    assert any("Search Coverage must equal deterministic" in error for error in errors)
+
+
+def test_search_run_requires_provider_metadata(valid_report):
+    report = deepcopy(valid_report)
+    report["search"]["query_runs"][0].pop("total_count")
+    assert any("missing required reproducibility fields" in error for error in validate_report(report))
+
+
+def test_direct_precedent_must_appear_in_top_killers(valid_report):
+    report = deepcopy(valid_report)
+    report["evidence"].append({"id": "E6", "canonical_paper_id": "A", "source_level": "TIER_2_FULLTEXT", "span": "Selection responds to compression.", "location": "Method 3.2", "source": "https://example.org/a", "retrieved_at": "2026-08-27T07:33:00Z", "evidence_kind": "METHOD", "supports": ["F2"]})
+    report["papers"][0]["coverage"]["F2"] = {"status": "EXACT", "evidence_ids": ["E6"]}
+    report["minimal_prior_sets"] = [{"paper_ids": ["A"], "size": 1, "covered_facets": ["F1", "F2"], "coverage_by_paper": {"A": ["F1", "F2"]}, "evidence_ids": ["E1", "E6"]}]
+    report["criticality_sensitivity"] = [
+        {"removed_facet": "F1", "baseline_size": 1, "alternative_size": 1, "alternative_classification": "DIRECT_PRECEDENT"},
+        {"removed_facet": "F2", "baseline_size": 1, "alternative_size": 1, "alternative_classification": "DIRECT_PRECEDENT"},
+    ]
+    report["verdict"].update({"classification": "DIRECT_PRECEDENT", "evidence_ids": ["E1", "E6"]})
+    report["top_killers"] = []
+    report["bridges"] = []
+    assert any("recomputed one-paper precedent in top_killers" in error for error in validate_report(report))
 
 
 def test_rejects_paper_outside_candidate_snapshot(valid_report):
@@ -265,4 +345,4 @@ def test_rejects_provider_failure_hidden_behind_broad_coverage(valid_report):
     report = deepcopy(valid_report)
     report["search"]["failures"] = [{"provider": "openalex", "type": "RATE_LIMIT", "detail": "HTTP 429"}]
     errors = validate_report(report)
-    assert any("incompatible with BROAD" in error for error in errors)
+    assert any("not linked to a failed or truncated SearchRun" in error for error in errors)

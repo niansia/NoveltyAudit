@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/v0.2/evidence.schema.json",
-  "x-schema-version": "0.2.0",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3/evidence.schema.json",
+  "x-schema-version": "0.3.0",
   "title": "NoveltyAudit Evidence Span",
   "type": "object",
   "required": ["id", "canonical_paper_id", "source_level", "span", "location", "source", "retrieved_at"],

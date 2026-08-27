@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ScholarProvider, request_json
+from providers.base import ScholarProvider, SearchResult, request_json
 
 
 class CrossrefProvider(ScholarProvider):
@@ -19,6 +19,8 @@ class CrossrefProvider(ScholarProvider):
             parts = ((message.get(key) or {}).get("date-parts") or [[]])[0]
             if len(parts) >= 3:
                 return f"{parts[0]:04d}-{parts[1]:02d}-{parts[2]:02d}", source
+            if len(parts) == 2:
+                return f"{parts[0]:04d}-{parts[1]:02d}", source
             if len(parts) == 1:
                 return str(parts[0]), "year_only"
         return None, None
@@ -42,10 +44,16 @@ class CrossrefProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search(self, query: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
         params: dict[str, Any] = {"query.bibliographic": query, "rows": min(max(limit, 1), 100), "select": "DOI,title,abstract,author,published-online,published-print,issued,container-title,URL,is-referenced-by-count,reference"}
         data = request_json(self.endpoint, params=params)
-        return [self._convert(item) for item in (data.get("message") or {}).get("items") or []]
+        message = data.get("message") or {}
+        papers = [self._convert(item) for item in message.get("items") or []]
+        return SearchResult(
+            papers=papers,
+            total_count=message.get("total-results"),
+            pagination={"offset": (message.get("query") or {}).get("start-index", 0), "rows": params["rows"]},
+        )
 
     def get_by_id(self, identifier: str) -> dict[str, Any]:
         data = request_json(f"{self.endpoint}/{quote(identifier, safe='')}")

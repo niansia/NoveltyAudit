@@ -23,3 +23,11 @@ def test_safety_and_mps_metrics():
     assert metrics.minimal_prior_set_recall([["A", "B"]], [["B", "A"], ["C"]]) == 0.5
     assert metrics.evidence_supported_claim_rate([{"evidence_ids": ["E"]}, {"evidence_ids": []}]) == 0.5
 
+
+def test_schema_records_wire_directly_into_metrics_adapter():
+    annotation = {"case_id": "C1", "overlooked_by_author": ["A"], "gold_prior_set": ["A", "B"]}
+    prediction = {"case_id": "C1", "ranked_papers": ["A", "X"], "predicted_prior_sets": [["A", "B"]], "verdict_paper_ids": ["A", "B"], "report_claims": [{"text": "covered", "evidence_ids": ["E1"]}]}
+    case = metrics.metric_case(annotation, prediction)
+    assert metrics.overlooked_killer_recall_at_k([case], 1) == 1.0
+    assert metrics.mean_reciprocal_rank([case]) == 1.0
+    assert metrics.minimal_prior_set_recall(case["predicted_prior_sets"], case["gold_prior_sets"]) == 1.0

@@ -1,15 +1,15 @@
 {
-  "schema_version": "0.2.0",
+  "schema_version": "0.3.0",
   "audit_id": "fixture-composition-001",
   "generated_at": "2026-08-27T08:00:00Z",
   "candidate_ids": ["A", "B", "C"],
   "run_manifest": {
-    "tool_version": "0.2.0",
+    "tool_version": "0.3.0",
     "config_hash": "sha256:36bb7e368e4466c9cc404644a69e694247eaba8af33570baf8cb6efa51ae045d",
     "cutoff": "2025-09-18",
     "domain": "computer science",
     "model_name": "host-agent-fixture",
-    "prompt_version": "0.2.0",
+    "prompt_version": "0.3.0",
     "retrieval_started_at": "2026-08-27T07:10:00Z",
     "retrieval_completed_at": "2026-08-27T07:18:00Z",
     "candidate_snapshot_hash": "sha256:b2fcbb781dd1bff5ce464b3e5df9739ed4a5f8a64417ab91e1a734a65b5edf90",
@@ -25,6 +25,13 @@
     "field": "computer science",
     "cutoff": "2025-09-18",
     "strict_date": true
+  },
+  "author_bibliography": {
+    "status": "PROVIDED",
+    "source": "Normalized references supplied with the audited manuscript.",
+    "entries": [{"raw_entry": "Compression-aware Selection (2023)", "matched_paper_id": "B", "match_basis": "TITLE_AUTHOR"}],
+    "normalized_paper_ids": ["B"],
+    "unmatched_entries": []
   },
   "claim_map": {
     "claim_id": "C0",
@@ -94,11 +101,11 @@
     "providers": [{"name": "openalex", "status": "ok"}, {"name": "semantic-scholar", "status": "ok"}, {"name": "arxiv", "status": "ok"}],
     "query_families": ["literal", "mechanism", "problem_function", "ancestor", "composition_bridge"],
     "query_runs": [
-      {"query_id": "Q-literal", "provider": "openalex", "family": "literal", "query": "adaptive memory compression-aware selection", "reason": "Test the literal contribution wording.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:10:00Z", "result_count": 25, "truncated": false, "status": "ok"},
-      {"query_id": "Q-mechanism", "provider": "semantic-scholar", "family": "mechanism", "query": "adaptive state update selective retention", "reason": "Search the mechanism without the author's compound label.", "target_facets": ["F1", "F2"], "removed_author_terms": true, "retrieved_at": "2026-08-27T07:12:00Z", "result_count": 20, "truncated": false, "status": "ok"},
-      {"query_id": "Q-problem", "provider": "openalex", "family": "problem_function", "query": "retain historical state under compressed input", "reason": "Search by problem and function.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:14:00Z", "result_count": 25, "truncated": false, "status": "ok"},
-      {"query_id": "Q-ancestor", "provider": "arxiv", "family": "ancestor", "query": "historical feature retention compressed representation", "reason": "Recover ancestor terminology.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:16:00Z", "result_count": 18, "truncated": false, "status": "ok"},
-      {"query_id": "Q-bridge", "provider": "openalex", "family": "composition_bridge", "query": "adaptive memory compression selection survey taxonomy", "reason": "Find historical bridges between the candidate mechanisms.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:18:00Z", "result_count": 22, "truncated": false, "status": "ok"}
+      {"query_id": "Q-literal", "provider": "openalex", "family": "literal", "query": "adaptive memory compression-aware selection", "reason": "Test the literal contribution wording.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:10:00Z", "returned_count": 2, "total_count": 2, "truncated": false, "pagination": {"page": 1, "per_page": 25, "next_cursor": null}, "corpus": "all", "paper_ids": ["A", "B"], "canonical_paper_ids": ["A", "B"], "status": "ok"},
+      {"query_id": "Q-mechanism", "provider": "semantic-scholar", "family": "mechanism", "query": "adaptive state update selective retention", "reason": "Search the mechanism without the author's compound label.", "target_facets": ["F1", "F2"], "removed_author_terms": true, "retrieved_at": "2026-08-27T07:12:00Z", "returned_count": 1, "total_count": 1, "truncated": false, "pagination": {"offset": 0, "limit": 25}, "corpus": "not_applicable", "paper_ids": ["A"], "canonical_paper_ids": ["A"], "status": "ok"},
+      {"query_id": "Q-problem", "provider": "openalex", "family": "problem_function", "query": "retain historical state under compressed input", "reason": "Search by problem and function.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:14:00Z", "returned_count": 1, "total_count": 1, "truncated": false, "pagination": {"page": 1, "per_page": 25, "next_cursor": null}, "corpus": "all", "paper_ids": ["B"], "canonical_paper_ids": ["B"], "status": "ok"},
+      {"query_id": "Q-ancestor", "provider": "arxiv", "family": "ancestor", "query": "historical feature retention compressed representation", "reason": "Recover ancestor terminology.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:16:00Z", "returned_count": 0, "total_count": 0, "truncated": false, "pagination": {"start": 0, "items_per_page": 25}, "corpus": "not_applicable", "paper_ids": [], "canonical_paper_ids": [], "status": "ok"},
+      {"query_id": "Q-bridge", "provider": "openalex", "family": "composition_bridge", "query": "adaptive memory compression selection survey taxonomy", "reason": "Find historical bridges between the candidate mechanisms.", "target_facets": ["F1", "F2"], "removed_author_terms": false, "retrieved_at": "2026-08-27T07:18:00Z", "returned_count": 1, "total_count": 1, "truncated": false, "pagination": {"page": 1, "per_page": 25, "next_cursor": null}, "corpus": "all", "paper_ids": ["C"], "canonical_paper_ids": ["C"], "status": "ok"}
     ],
     "failures": [],
     "gaps": ["One workshop paper had no full text."],
@@ -106,6 +113,12 @@
       {"id": "critical-facets-multi-family", "status": "COMPLETE", "detail": "Each critical facet was covered by multiple query families."},
       {"id": "composition-bridge", "status": "COMPLETE", "detail": "A dedicated bridge query was executed."}
     ],
+    "coverage_derivation": {
+      "level": "BROAD",
+      "successful_providers": ["arxiv", "openalex", "semantic-scholar"],
+      "successful_families": ["ancestor", "composition_bridge", "literal", "mechanism", "problem_function"],
+      "reasons": []
+    },
     "saturated": true
   },
   "excluded": {"post_cutoff": [], "date_uncertain": [], "other": []},

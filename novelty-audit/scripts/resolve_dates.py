@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from calendar import monthrange
 from datetime import date, datetime
 from typing import Any, Iterable
 
@@ -42,7 +43,7 @@ def parse_date(value: Any) -> tuple[date | None, str]:
 
 def resolve_earliest_public_date(paper: dict[str, Any]) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
-    year_only: list[dict[str, Any]] = []
+    partial: list[dict[str, Any]] = []
     for entry in paper.get("dates") or []:
         if isinstance(entry, str):
             entry = {"value": entry, "source": "publication"}
@@ -57,24 +58,40 @@ def resolve_earliest_public_date(paper: dict[str, Any]) -> dict[str, Any]:
         if value and candidate["verified"]:
             candidate["parsed"] = value.isoformat()
             candidates.append(candidate)
-        elif precision == "year":
-            year_only.append(candidate)
+        elif precision in {"year", "month"} and candidate["verified"]:
+            text = str(candidate["value"])
+            if precision == "year":
+                candidate.update({"lower_bound": f"{text}-01-01", "upper_bound": f"{text}-12-31"})
+            else:
+                year, month = (int(value) for value in text.split("-"))
+                candidate.update({"lower_bound": f"{year:04d}-{month:02d}-01", "upper_bound": f"{year:04d}-{month:02d}-{monthrange(year, month)[1]:02d}"})
+            partial.append(candidate)
     if not candidates and paper.get("year"):
-        year_only.append({"value": str(paper["year"]), "source": "year_only", "precision": "year", "verified": True})
+        text = str(paper["year"])
+        partial.append({"value": text, "source": "year_only", "precision": "year", "verified": True, "lower_bound": f"{text}-01-01", "upper_bound": f"{text}-12-31"})
     if candidates:
         candidates.sort(key=lambda item: (item["parsed"], SOURCE_PRIORITY.get(item["source"], 50)))
         earliest = candidates[0]
+        possibly_earlier = [item for item in partial if item["lower_bound"] <= earliest["parsed"]]
+        if possibly_earlier:
+            possibly_earlier.sort(key=lambda item: (item["lower_bound"], SOURCE_PRIORITY.get(item["source"], 50)))
+            return {
+                "earliest_public_date": None,
+                "date_status": "DATE_UNCERTAIN",
+                "date_provenance": possibly_earlier[0],
+                "observed_dates": candidates + partial,
+            }
         return {
             "earliest_public_date": earliest["parsed"],
             "date_status": "RESOLVED",
             "date_provenance": earliest,
-            "observed_dates": candidates + year_only,
+            "observed_dates": candidates + partial,
         }
     return {
         "earliest_public_date": None,
         "date_status": "DATE_UNCERTAIN",
-        "date_provenance": year_only[0] if year_only else None,
-        "observed_dates": year_only,
+        "date_provenance": partial[0] if partial else None,
+        "observed_dates": partial,
     }
 
 
@@ -97,4 +114,3 @@ def apply_cutoff(paper: dict[str, Any], cutoff: str, strict: bool = True) -> dic
 
 def apply_cutoff_many(records: Iterable[dict[str, Any]], cutoff: str, strict: bool = True) -> list[dict[str, Any]]:
     return [apply_cutoff(record, cutoff, strict=strict) for record in records]
-

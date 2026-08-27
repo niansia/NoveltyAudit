@@ -1,6 +1,6 @@
 [project]
 name = "novelty-audit"
-version = "0.2.0"
+version = "0.3.0"
 description = "Composition-aware scholarly novelty audit Agent Skill"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,6 +16,9 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest>=8", "jsonschema>=4.23"]
+
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["novelty-audit/tests"]

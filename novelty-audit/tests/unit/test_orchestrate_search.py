@@ -39,6 +39,7 @@ def test_search_plan_returns_partial_with_machine_readable_failure():
     assert result["error_code"] == "BACKEND_DEGRADED"
     assert result["search"]["failures"][0]["type"] == "RATE_LIMIT"
     assert result["papers"][0]["found_by_query_ids"] == ["Q1:good"]
+    assert result["search"]["query_runs"][0]["canonical_paper_ids"] == ["A"]
 
 
 def test_search_plan_all_failures_is_not_a_novelty_verdict():
@@ -47,4 +48,4 @@ def test_search_plan_all_failures_is_not_a_novelty_verdict():
     result = orchestrate_search.run_search_plan(value, {"failed": FailedProvider})
     assert result["status"] == "FAILED"
     assert result["error_code"] == "ALL_PROVIDERS_FAILED"
-    assert result["search"]["suggested_coverage"] == "NARROW"
+    assert result["search"]["coverage_derivation"]["level"] == "NARROW"

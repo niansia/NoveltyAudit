@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/v0.2/paper.schema.json",
-  "x-schema-version": "0.2.0",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3/paper.schema.json",
+  "x-schema-version": "0.3.0",
   "title": "Canonical Scholarly Paper",
   "type": "object",
   "required": ["id", "title", "providers", "dates", "cutoff_status", "coverage", "found_by_query_ids"],

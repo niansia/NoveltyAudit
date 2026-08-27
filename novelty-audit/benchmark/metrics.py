@@ -5,6 +5,22 @@ from __future__ import annotations
 from typing import Iterable, Sequence
 
 
+def metric_case(annotation: dict, prediction: dict) -> dict:
+    """Join schema-valid gold annotation and prediction records for metrics."""
+    if annotation.get("case_id") != prediction.get("case_id"):
+        raise ValueError("annotation and prediction case_id values must match")
+    return {
+        "case_id": annotation["case_id"],
+        "overlooked_gold": list(annotation.get("overlooked_by_author") or []),
+        "gold": list(annotation.get("gold_prior_set") or []),
+        "gold_prior_sets": [list(annotation.get("gold_prior_set") or [])],
+        "ranked_papers": list(prediction.get("ranked_papers") or []),
+        "predicted_prior_sets": list(prediction.get("predicted_prior_sets") or []),
+        "verdict_paper_ids": list(prediction.get("verdict_paper_ids") or []),
+        "report_claims": list(prediction.get("report_claims") or []),
+    }
+
+
 def overlooked_killer_recall_at_k(cases: Iterable[dict], k: int = 5) -> float:
     numerator = 0
     denominator = 0
@@ -47,4 +63,3 @@ def evidence_supported_claim_rate(report_claims: Sequence[dict]) -> float:
         return 0.0
     supported = sum(bool(claim.get("evidence_ids")) for claim in report_claims)
     return supported / len(report_claims)
-

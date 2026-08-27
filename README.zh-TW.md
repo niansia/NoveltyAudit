@@ -24,11 +24,12 @@ NoveltyAudit 是一個證據優先、組合式、時間嚴格的學術新穎性�
 - criticality leave-one-out 敏感度分析。
 - Markdown、JSON、HTML 匯出與 adversarial invariant validator。
 - 具版本的 run manifest、獨立 DOI／arXiv 驗證，以及區分文獻快照變化與推理變化的 snapshot diff。
+- 保存 provider 計數、分頁、corpus 與截斷狀態的 SearchRun，並由 validator 自動推導 Search Coverage。
 - JSON Schemas、golden fixture、測試與 benchmark annotation schema。
 
 核心流程不需要額外付費 LLM API；宿主 agent 負責 claim decomposition 與 evidence interpretation，scripts 只處理可重現的 deterministic 工作。
 
-Provider key 對基本使用並非必要。`S2_API_KEY` 可降低 Semantic Scholar 的節流；免費的 `OPENALEX_API_KEY` 可將 OpenAlex 每日額度從匿名試用額度提高到 1 美元。OpenAlex 已在 2026 年淘汰 polite-pool 制度，因此本專案不使用 `mailto`。
+Provider key 對基本使用並非必要。`S2_API_KEY` 可降低 Semantic Scholar 的節流；免費的 `OPENALEX_API_KEY` 可將 OpenAlex 每日額度從匿名試用額度提高到 1 美元。OpenAlex 已在 2026 年淘汰 polite-pool 制度，因此本專案不使用 `mailto`。OpenAlex 檢索會明確要求 `corpus=all`；只查 core 的 run 不能宣稱 `BROAD` coverage。
 
 ## 安裝
 

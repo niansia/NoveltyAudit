@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 from composition import criticality_sensitivity, solve_mps
+from citation_graph import find_bridges
 from deduplicate import deduplicate
 from export_report import export
 from normalize_paper import normalize_many
@@ -52,8 +54,9 @@ def records(value: Any) -> list[dict[str, Any]]:
 def command_search(args: argparse.Namespace) -> int:
     provider_class = SEARCH_PROVIDERS[args.provider]
     provider = provider_class()
+    retrieved_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     try:
-        result = provider.search(args.query, before=args.before, limit=args.limit)
+        result = provider.search_with_metadata(args.query, before=args.before, limit=args.limit)
     except ProviderError as error:
         message = str(error)
         if "HTTP 429" in message:
@@ -68,11 +71,20 @@ def command_search(args: argparse.Namespace) -> int:
             error_code = "PROVIDER_UNAVAILABLE"
         write_json(args.output, {
             "status": "FAILED", "error_code": error_code, "provider": provider.name,
-            "before": args.before, "papers": [], "error": message,
+            "family": args.family, "query": args.query, "retrieved_at": retrieved_at,
+            "before": args.before, "returned_count": 0, "total_count": None,
+            "truncated": False, "pagination": {}, "corpus": getattr(provider, "corpus", "not_applicable"),
+            "papers": [], "error": message,
         })
         return EXIT_ALL_PROVIDERS_FAILED
-    write_json(args.output, {"status": "COMPLETE", "error_code": None, "provider": provider.name, "query": args.query, "before": args.before, "papers": result})
-    return EXIT_COMPLETE
+    status = "PARTIAL" if result.truncated else "COMPLETE"
+    write_json(args.output, {
+        "status": status, "error_code": "TRUNCATED" if result.truncated else None,
+        "provider": provider.name, "family": args.family, "query": args.query,
+        "retrieved_at": retrieved_at,
+        "before": args.before, **result.audit_fields(), "papers": result.papers,
+    })
+    return EXIT_PARTIAL if result.truncated else EXIT_COMPLETE
 
 
 def command_search_plan(args: argparse.Namespace) -> int:
@@ -122,6 +134,18 @@ def command_snapshot_diff(args: argparse.Namespace) -> int:
     return EXIT_COMPLETE
 
 
+def command_bridge(args: argparse.Namespace) -> int:
+    papers = records(read_json(args.papers))
+    graph_bridges = find_bridges(args.paper_a, args.paper_b, papers, cutoff=args.cutoff)
+    write_json(args.output, {
+        "paper_ids": [args.paper_a, args.paper_b],
+        "cutoff": args.cutoff,
+        "graph_bridges": graph_bridges,
+        "textual_bridge_required": bool(graph_bridges),
+    })
+    return EXIT_COMPLETE
+
+
 def command_mps(args: argparse.Namespace) -> int:
     payload = read_json(args.input)
     papers = records(payload)
@@ -163,6 +187,7 @@ def parser() -> argparse.ArgumentParser:
     search = sub.add_parser("search", help="search one scholarly provider")
     search.add_argument("--provider", choices=sorted(SEARCH_PROVIDERS), required=True)
     search.add_argument("--query", required=True)
+    search.add_argument("--family", default="unspecified")
     search.add_argument("--before")
     search.add_argument("--limit", type=int, default=25)
     search.add_argument("--output", required=True)
@@ -201,6 +226,14 @@ def parser() -> argparse.ArgumentParser:
     snapshot.add_argument("--after", required=True)
     snapshot.add_argument("--output", required=True)
     snapshot.set_defaults(func=command_snapshot_diff)
+
+    bridge = sub.add_parser("bridge", help="discover deterministic citation-graph bridges")
+    bridge.add_argument("--papers", required=True)
+    bridge.add_argument("--paper-a", required=True)
+    bridge.add_argument("--paper-b", required=True)
+    bridge.add_argument("--cutoff")
+    bridge.add_argument("--output", required=True)
+    bridge.set_defaults(func=command_bridge)
 
     mps = sub.add_parser("mps", help="solve evidence-bound Minimal Prior Sets")
     mps.add_argument("--input", required=True)

@@ -3,7 +3,7 @@
 Use `schemas/report.schema.json` as the machine contract. Important human-facing sections are:
 
 1. three-axis verdict and classification;
-2. input claim, normalized claim, field, and cutoff;
+2. input claim, normalized claim, field, cutoff, and normalized author bibliography;
 3. frozen atomic claim map;
 4. Top Killer Papers with evidence and prior awareness;
 5. Minimal Prior Set and coverage matrix;
@@ -11,7 +11,7 @@ Use `schemas/report.schema.json` as the machine contract. Important human-facing
 7. criticality sensitivity;
 8. ancestor terminology trail;
 9. residual novelty and defensible rewrite;
-10. search coverage obligations, failures, and gaps;
+10. auditable SearchRun counts, pagination, corpus, deterministic coverage derivation, obligations, failures, and gaps;
 11. excluded, post-cutoff, and date-uncertain papers;
 12. audit log and reproducibility metadata.
 

@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from normalize_paper import normalize_paper
-from providers.base import ScholarProvider, request_json
+from providers.base import ScholarProvider, SearchResult, request_json
 
 
 FIELDS = "paperId,title,abstract,authors,year,venue,url,externalIds,citationCount,publicationDate,openAccessPdf,referenceCount"
@@ -38,10 +38,15 @@ class SemanticScholarProvider(ScholarProvider):
         }
         return normalize_paper(record, self.name)
 
-    def search(self, query: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
         params: dict[str, Any] = {"query": query, "limit": min(max(limit, 1), 100), "fields": FIELDS}
         data = request_json(f"{self.endpoint}/paper/search", params=params, headers=self._headers())
-        return [self._convert(paper) for paper in (data.get("data") or [])[:limit]]
+        papers = [self._convert(paper) for paper in (data.get("data") or [])[:limit]]
+        return SearchResult(
+            papers=papers,
+            total_count=data.get("total"),
+            pagination={"offset": data.get("offset", 0), "limit": params["limit"], "next": data.get("next")},
+        )
 
     def get_by_id(self, identifier: str) -> dict[str, Any]:
         data = request_json(f"{self.endpoint}/paper/{quote(identifier, safe='')}", params={"fields": FIELDS}, headers=self._headers())

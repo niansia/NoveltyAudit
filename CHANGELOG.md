@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 - 2026-08-27
+
+- Made Search Coverage deterministic from provider-returned SearchRun counts, pagination, corpus, truncation, failures, obligations, and saturation.
+- Added normalized author-bibliography auditing, sensitivity recomputation, ancestor provenance checks, and direct-precedent killer enforcement.
+- Added a first-class bridge CLI, explicit OpenAlex `corpus=all`, canonical `per_page`, robust arXiv boolean query assembly, and month-precision date handling.
+- Wired benchmark annotations to a prediction schema and metric adapter.
+- Disabled accidental setuptools package discovery and documented clean `git archive` release packaging.
+
 ## 0.2.0 - 2026-08-27
 
 - Retired the obsolete OpenAlex polite-pool `mailto` parameter and documented current API-key budgets.

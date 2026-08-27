@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -16,11 +17,44 @@ class ProviderError(RuntimeError):
     pass
 
 
+@dataclass
+class SearchResult:
+    """Provider-returned search page with the metadata needed to audit coverage."""
+
+    papers: list[dict[str, Any]]
+    total_count: int | None
+    pagination: dict[str, Any] = field(default_factory=dict)
+    corpus: str = "not_applicable"
+
+    @property
+    def returned_count(self) -> int:
+        return len(self.papers)
+
+    @property
+    def truncated(self) -> bool:
+        if self.pagination.get("next_cursor") or self.pagination.get("next") is not None:
+            return True
+        offset = int(self.pagination.get("offset") or self.pagination.get("start") or 0)
+        return self.total_count is not None and offset + self.returned_count < self.total_count
+
+    def audit_fields(self) -> dict[str, Any]:
+        return {
+            "returned_count": self.returned_count,
+            "total_count": self.total_count,
+            "truncated": self.truncated,
+            "pagination": self.pagination,
+            "corpus": self.corpus,
+        }
+
+
 class ScholarProvider(ABC):
     name = "base"
 
-    @abstractmethod
     def search(self, query: str, *, before: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        return self.search_with_metadata(query, before=before, limit=limit).papers
+
+    @abstractmethod
+    def search_with_metadata(self, query: str, *, before: str | None = None, limit: int = 100) -> SearchResult:
         raise NotImplementedError
 
     def get_by_id(self, identifier: str) -> dict[str, Any]:
@@ -54,7 +88,7 @@ def request_json(
     if params:
         query = urlencode({key: value for key, value in params.items() if value is not None})
         url = f"{url}{'&' if '?' in url else '?'}{query}"
-    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.2 (+https://github.com/)"}
+    request_headers = {"Accept": "application/json", "User-Agent": "NoveltyAudit/0.3 (+https://github.com/)"}
     request_headers.update(headers or {})
     last_error: Exception | None = None
     for attempt in range(retries):
