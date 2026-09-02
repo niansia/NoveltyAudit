@@ -46,33 +46,61 @@ def _prefer(left: Any, right: Any) -> Any:
     return left
 
 
+def _merge_unique(left: list[Any], right: list[Any]) -> list[Any]:
+    items = left + right
+    seen: set[str] = set()
+    return [item for item in items if not (repr(item) in seen or seen.add(repr(item)))]
+
+
 def merge_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     merged = dict(records[0])
     merged["versions"] = []
+    latest_verified_versions: set[int] = set()
     for record in records:
         merged["versions"].append({
             "id": record.get("id"),
             "doi": record.get("doi"),
             "arxiv_id": record.get("arxiv_id"),
+            "arxiv_version": record.get("arxiv_version"),
+            "arxiv_latest_version_verified": bool(record.get("arxiv_latest_version_verified", False)),
+            "arxiv_versions": record.get("arxiv_versions", []),
             "providers": record.get("providers", []),
             "dates": record.get("dates", []),
+            "fulltext_urls": record.get("fulltext_urls", []),
         })
         for key in ("title", "abstract", "venue", "doi", "arxiv_id", "url", "year", "open_access"):
             merged[key] = _prefer(merged.get(key), record.get(key))
+        known_arxiv_versions = [
+            value for value in (merged.get("arxiv_version"), record.get("arxiv_version"))
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 1
+        ]
+        merged["arxiv_version"] = max(known_arxiv_versions) if known_arxiv_versions else None
+        record_version = record.get("arxiv_version")
+        if (
+            record.get("arxiv_latest_version_verified") is True
+            and isinstance(record_version, int)
+            and not isinstance(record_version, bool)
+            and record_version >= 1
+        ):
+            latest_verified_versions.add(record_version)
         citation_counts = [
             value for value in (merged.get("citation_count"), record.get("citation_count"))
             if isinstance(value, int) and not isinstance(value, bool)
         ]
         merged["citation_count"] = max(citation_counts) if citation_counts else None
-        for key in ("providers", "references", "dates", "raw_provenance", "found_by_query_ids"):
-            items = merged.get(key, []) + record.get(key, [])
-            seen: set[str] = set()
-            merged[key] = [item for item in items if not (repr(item) in seen or seen.add(repr(item)))]
+        for key in (
+            "providers", "references", "dates", "raw_provenance", "found_by_query_ids",
+            "fulltext_urls", "arxiv_versions",
+        ):
+            merged[key] = _merge_unique(merged.get(key, []), record.get(key, []))
         provider_ids = merged.setdefault("provider_ids", {})
         for provider, provider_id in (record.get("provider_ids") or {}).items():
             provider_ids.setdefault(provider, provider_id)
         if len(record.get("authors") or []) > len(merged.get("authors") or []):
             merged["authors"] = record["authors"]
+    merged["arxiv_latest_version_verified"] = bool(
+        merged.get("arxiv_version") in latest_verified_versions
+    )
     merged["canonical_key"] = next(
         (f"doi:{merged['doi']}" for _ in [0] if merged.get("doi")),
         f"arxiv:{merged['arxiv_id']}" if merged.get("arxiv_id") else merged.get("canonical_key"),

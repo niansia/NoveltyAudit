@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Pin strict historical arXiv full-text evidence to the latest verified version available at or before the cutoff. Complete version metadata is resolved through versioned arXiv API IDs; incomplete histories and redirects to unversioned/current PDFs now fail closed.
+- Preserve arXiv version numbers, exact version dates, versioned PDF URLs, and version-history metadata across normalization and deduplication.
+- Add regression coverage for post-cutoff revision leakage, incomplete histories, redirect drift, provider metadata parsing, and provider-order-independent deduplication.
+
 ## 0.3.1 - 2026-08-28 — Initial public release
 
 - Evidence-first scholarly novelty audits with frozen claim facets, supplied-bibliography states, strict historical cutoffs, and separate Novelty Risk, Search Protocol Coverage, and Evidence Confidence axes.

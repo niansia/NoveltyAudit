@@ -7,7 +7,7 @@ import ipaddress
 import re
 import socket
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from hashlib import sha256
 from html.parser import HTMLParser
 from io import BytesIO
@@ -23,7 +23,14 @@ from urllib.request import (
     build_opener,
 )
 
+from normalize_paper import normalize_arxiv_id, split_arxiv_id
+from providers.arxiv import ArxivProvider
+
+
 USER_AGENT = "NoveltyAudit/0.3.1"
+ARXIV_HOSTS = {"arxiv.org", "www.arxiv.org", "export.arxiv.org"}
+ARXIV_VERSION_LOCK = "LATEST_VERIFIED_VERSION_AT_OR_BEFORE_CUTOFF"
+ArxivVersionResolver = Callable[[str, int | None], list[dict[str, Any]]]
 
 
 class FullTextError(RuntimeError):
@@ -209,6 +216,255 @@ def _extract(payload: bytes, content_type: str) -> tuple[str, str, str]:
     return decoded, "TEXT", "utf-8"
 
 
+def _date_value(value: Any) -> date | None:
+    text = str(value or "").strip()
+    if len(text) != 10:
+        return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def _arxiv_identity(url: str) -> tuple[str, int | None] | None:
+    parsed = urlsplit(url)
+    if (parsed.hostname or "").casefold() not in ARXIV_HOSTS:
+        return None
+    path = parsed.path
+    if path.startswith("/pdf/"):
+        identifier = path.removeprefix("/pdf/")
+    elif path.startswith("/abs/"):
+        identifier = path.removeprefix("/abs/")
+    else:
+        return None
+    if identifier.casefold().endswith(".pdf"):
+        identifier = identifier[:-4]
+    base_id, version = split_arxiv_id(identifier)
+    return (base_id, version) if base_id else None
+
+
+def _exact_arxiv_pdf(url: Any, base_id: str, version: int) -> str | None:
+    if not url:
+        return None
+    candidate = str(url)
+    identity = _arxiv_identity(candidate)
+    if identity != (base_id, version):
+        return None
+    try:
+        _validate_public_url(candidate, resolve=False)
+    except FullTextError:
+        return None
+    return f"https://arxiv.org/pdf/{base_id}v{version}"
+
+
+def _version_entries_from_record(paper: dict[str, Any], base_id: str) -> dict[int, dict[str, Any]]:
+    records = [paper, *(item for item in (paper.get("versions") or []) if isinstance(item, dict))]
+    entries: dict[int, dict[str, Any]] = {}
+    for record in records:
+        for raw in record.get("arxiv_versions") or []:
+            if not isinstance(raw, dict) or raw.get("verified") is not True:
+                continue
+            version = raw.get("version")
+            submitted_at = _date_value(raw.get("submitted_at"))
+            if not isinstance(version, int) or isinstance(version, bool) or version < 1 or submitted_at is None:
+                continue
+            identifier_base, identifier_version = split_arxiv_id(raw.get("identifier"))
+            if identifier_base != base_id or identifier_version != version:
+                continue
+            pdf_url = _exact_arxiv_pdf(raw.get("pdf_url"), base_id, version)
+            candidate = {
+                "version": version,
+                "identifier": f"{base_id}v{version}",
+                "submitted_at": submitted_at.isoformat(),
+                "pdf_url": pdf_url,
+                "verified": True,
+            }
+            previous = entries.get(version)
+            if previous:
+                if previous["submitted_at"] != candidate["submitted_at"]:
+                    raise FullTextError(f"conflicting arXiv metadata for version v{version}")
+                if previous.get("pdf_url") and candidate.get("pdf_url") and previous["pdf_url"] != candidate["pdf_url"]:
+                    raise FullTextError(f"conflicting arXiv PDF metadata for version v{version}")
+                if not previous.get("pdf_url") and candidate.get("pdf_url"):
+                    entries[version] = candidate
+            else:
+                entries[version] = candidate
+
+    for record in records:
+        record_version = record.get("arxiv_version")
+        if (
+            not isinstance(record_version, int)
+            or isinstance(record_version, bool)
+            or record_version < 1
+            or record_version in entries
+        ):
+            continue
+        source = "arxiv_v1" if record_version == 1 else f"arxiv_v{record_version}"
+        submitted_at = next(
+            (
+                _date_value(item.get("value"))
+                for item in record.get("dates") or []
+                if isinstance(item, dict)
+                and item.get("source") == source
+                and item.get("verified", True) is True
+            ),
+            None,
+        )
+        pdf_url = next(
+            (
+                exact
+                for value in record.get("fulltext_urls") or []
+                if (exact := _exact_arxiv_pdf(value, base_id, record_version))
+            ),
+            None,
+        )
+        if submitted_at is not None:
+            entries[record_version] = {
+                "version": record_version,
+                "identifier": f"{base_id}v{record_version}",
+                "submitted_at": submitted_at.isoformat(),
+                "pdf_url": pdf_url,
+                "verified": True,
+            }
+    return entries
+
+
+def _latest_verified_arxiv_version(
+    paper: dict[str, Any], entries: dict[int, dict[str, Any]]
+) -> int | None:
+    records = [paper, *(item for item in (paper.get("versions") or []) if isinstance(item, dict))]
+    verified = []
+    for record in records:
+        if record.get("arxiv_latest_version_verified") is not True:
+            continue
+        value = record.get("arxiv_version")
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 1:
+            verified.append(value)
+    if not verified:
+        return None
+    latest = max(verified)
+    return latest if latest in entries else None
+
+
+def _validate_version_entries(
+    entries: dict[int, dict[str, Any]], *, latest_version: int, require_complete: bool
+) -> None:
+    if require_complete and set(entries) != set(range(1, latest_version + 1)):
+        missing = sorted(set(range(1, latest_version + 1)) - set(entries))
+        raise FullTextError(f"arXiv version history is incomplete; missing versions: {missing}")
+    previous_date: date | None = None
+    for version in sorted(entries):
+        entry = entries[version]
+        submitted_at = _date_value(entry.get("submitted_at"))
+        if submitted_at is None or entry.get("verified") is not True:
+            raise FullTextError(f"arXiv version v{version} lacks verified submission metadata")
+        if previous_date is not None and submitted_at < previous_date:
+            raise FullTextError("arXiv version dates are not monotonic")
+        previous_date = submitted_at
+
+
+def _select_version_entry(
+    entries: dict[int, dict[str, Any]],
+    *,
+    cutoff: date,
+    latest_version: int | None,
+    require_complete_history: bool,
+) -> dict[str, Any] | None:
+    if latest_version is None:
+        return None
+    _validate_version_entries(
+        entries, latest_version=latest_version, require_complete=require_complete_history
+    )
+    eligible = [
+        entry for version, entry in entries.items()
+        if version <= latest_version
+        and _date_value(entry.get("submitted_at")) is not None
+        and _date_value(entry.get("submitted_at")) <= cutoff
+        and entry.get("pdf_url")
+    ]
+    return max(eligible, key=lambda item: int(item["version"])) if eligible else None
+
+
+def _default_arxiv_version_resolver(base_id: str, latest_version: int | None) -> list[dict[str, Any]]:
+    return ArxivProvider().version_history(base_id, latest_version=latest_version)
+
+
+def _historical_arxiv_source(
+    paper: dict[str, Any],
+    resolver: ArxivVersionResolver,
+) -> dict[str, Any] | None:
+    base_id = normalize_arxiv_id(paper.get("arxiv_id"))
+    if not base_id or paper.get("cutoff_status") != "ELIGIBLE":
+        return None
+    cutoff = _date_value(paper.get("cutoff"))
+    if cutoff is None:
+        raise FullTextError("strict historical arXiv acquisition requires paper.cutoff as YYYY-MM-DD")
+
+    local_entries = _version_entries_from_record(paper, base_id)
+    latest_version = _latest_verified_arxiv_version(paper, local_entries)
+    latest_entry = local_entries.get(latest_version) if latest_version is not None else None
+    if latest_entry and _date_value(latest_entry.get("submitted_at")) <= cutoff and latest_entry.get("pdf_url"):
+        _validate_version_entries(local_entries, latest_version=latest_version, require_complete=False)
+        selected = latest_entry
+        selection_entries = local_entries
+        history_complete = set(local_entries) == set(range(1, latest_version + 1))
+        method = "LOCAL_LATEST_VERSION_METADATA"
+    else:
+        try:
+            history = resolver(base_id, latest_version)
+        except Exception as error:  # noqa: BLE001 - fail closed on provider/version-resolution errors
+            raise FullTextError(f"arXiv version history resolution failed: {error}") from error
+        resolved_entries: dict[int, dict[str, Any]] = {}
+        for record in history:
+            if not isinstance(record, dict):
+                raise FullTextError("arXiv version resolver returned a malformed record")
+            record_base = normalize_arxiv_id(record.get("arxiv_id"))
+            version = record.get("arxiv_version")
+            if record_base != base_id or not isinstance(version, int) or isinstance(version, bool):
+                raise FullTextError("arXiv version resolver returned mismatched metadata")
+            record_entries = _version_entries_from_record(record, base_id)
+            entry = record_entries.get(version)
+            if entry is None:
+                raise FullTextError(f"arXiv version resolver omitted verified metadata for v{version}")
+            if version in resolved_entries and resolved_entries[version] != entry:
+                raise FullTextError(f"arXiv version resolver returned conflicting metadata for v{version}")
+            resolved_entries[version] = entry
+        resolved_latest = max(resolved_entries) if resolved_entries else None
+        if latest_version is not None and resolved_latest != latest_version:
+            raise FullTextError(
+                f"arXiv version history disagrees with the known latest version v{latest_version}"
+            )
+        latest_version = resolved_latest
+        selected = _select_version_entry(
+            resolved_entries,
+            cutoff=cutoff,
+            latest_version=latest_version,
+            require_complete_history=True,
+        )
+        selection_entries = resolved_entries
+        history_complete = True
+        method = "ARXIV_API_COMPLETE_VERSION_HISTORY"
+    if selected is None:
+        raise FullTextError("no verified downloadable arXiv version existed at or before the cutoff")
+    return {
+        **selected,
+        "cutoff": cutoff.isoformat(),
+        "version_lock": ARXIV_VERSION_LOCK,
+        "selection_method": method,
+        "version_history": [selection_entries[version] for version in sorted(selection_entries)],
+        "version_history_complete": history_complete,
+    }
+
+
+def _require_same_arxiv_version(requested_url: str, final_url: str) -> None:
+    requested = _arxiv_identity(requested_url)
+    if requested is None or requested[1] is None:
+        raise FullTextError("historical arXiv request was not pinned to an explicit version")
+    final = _arxiv_identity(final_url)
+    if final != requested:
+        raise FullTextError("historical arXiv download did not preserve the explicitly requested version")
+
+
 def source_candidates(paper: dict[str, Any]) -> list[str]:
     candidates = list(paper.get("fulltext_urls") or [])
     open_access = paper.get("open_access")
@@ -218,8 +474,15 @@ def source_candidates(paper: dict[str, Any]) -> list[str]:
         for key in ("url", "oa_url", "pdf_url", "landing_page_url"):
             if open_access.get(key):
                 candidates.append(str(open_access[key]))
-    if paper.get("arxiv_id"):
-        candidates.append(f"https://arxiv.org/pdf/{paper['arxiv_id']}")
+    arxiv_id = normalize_arxiv_id(paper.get("arxiv_id"))
+    arxiv_version = paper.get("arxiv_version")
+    if arxiv_id:
+        suffix = (
+            f"v{arxiv_version}"
+            if isinstance(arxiv_version, int) and not isinstance(arxiv_version, bool) and arxiv_version >= 1
+            else ""
+        )
+        candidates.append(f"https://arxiv.org/pdf/{arxiv_id}{suffix}")
     unique: list[str] = []
     for candidate in candidates:
         try:
@@ -242,6 +505,7 @@ def acquire_fulltexts(
     *,
     fetcher: Callable[[str, int], tuple[bytes, str, str]] = fetch_url,
     max_bytes: int = 25_000_000,
+    arxiv_version_resolver: ArxivVersionResolver = _default_arxiv_version_resolver,
 ) -> dict[str, Any]:
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
@@ -249,14 +513,36 @@ def acquire_fulltexts(
     failures: list[dict[str, Any]] = []
     for paper in papers:
         paper_id = str(paper.get("id") or "")
-        urls = source_candidates(paper)
-        if not paper_id or not urls:
-            failures.append({"paper_id": paper_id or "<missing>", "error_code": "NO_PUBLIC_FULLTEXT_URL", "detail": "No provider-derived public full-text URL was available."})
+        if not paper_id:
+            failures.append({
+                "paper_id": "<missing>",
+                "error_code": "NO_PUBLIC_FULLTEXT_URL",
+                "detail": "No provider-derived public full-text URL was available.",
+            })
+            continue
+        try:
+            historical_arxiv = _historical_arxiv_source(paper, arxiv_version_resolver)
+        except FullTextError as error:
+            failures.append({
+                "paper_id": paper_id,
+                "error_code": "ARXIV_VERSION_RESOLUTION_FAILED",
+                "detail": str(error),
+            })
+            continue
+        urls = [historical_arxiv["pdf_url"]] if historical_arxiv else source_candidates(paper)
+        if not urls:
+            failures.append({
+                "paper_id": paper_id,
+                "error_code": "NO_PUBLIC_FULLTEXT_URL",
+                "detail": "No provider-derived public full-text URL was available.",
+            })
             continue
         errors: list[str] = []
         for url in urls:
             try:
                 payload, content_type, final_url = fetcher(url, max_bytes)
+                if historical_arxiv:
+                    _require_same_arxiv_version(url, final_url)
                 text, source_kind, extraction_method = _extract(payload, content_type)
                 text = text.replace("\x00", "").strip()
                 if not text:
@@ -266,7 +552,7 @@ def acquire_fulltexts(
                 text_path = target / f"{_safe_stem(paper_id)}-{text_hash[:12]}.txt"
                 text_path.write_text(text + "\n", encoding="utf-8")
                 acquisition_id = f"FT:{paper_id}:{text_hash[:16]}"
-                acquisitions.append({
+                acquisition = {
                     "id": acquisition_id,
                     "paper_id": paper_id,
                     "status": "COMPLETE",
@@ -278,7 +564,18 @@ def acquire_fulltexts(
                     "text_path": str(text_path),
                     "extraction_method": extraction_method,
                     "char_count": len(text),
-                })
+                }
+                if historical_arxiv:
+                    acquisition.update({
+                        "historical_cutoff": historical_arxiv["cutoff"],
+                        "arxiv_version": historical_arxiv["version"],
+                        "arxiv_version_date": historical_arxiv["submitted_at"],
+                        "version_lock": historical_arxiv["version_lock"],
+                        "version_selection_method": historical_arxiv["selection_method"],
+                        "arxiv_version_history": historical_arxiv["version_history"],
+                        "arxiv_version_history_complete": historical_arxiv["version_history_complete"],
+                    })
+                acquisitions.append(acquisition)
                 break
             except Exception as error:  # noqa: BLE001 - isolate one failed candidate URL
                 errors.append(f"{url}: {error}")
