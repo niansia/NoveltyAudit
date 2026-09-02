@@ -54,6 +54,7 @@ jobs:
           "dist/scholarly-novelty-audit-${{ github.ref_name }}.zip"
           "dist/scholarly-novelty-audit-${{ github.ref_name }}.zip.sha256"
           --verify-tag
+          --prerelease
           --generate-notes
           --title "NoveltyAudit ${{ github.ref_name }} — Alpha"
         env:
