@@ -451,3 +451,38 @@ def test_schema_guard_leaves_non_strict_reports_unchanged():
     report["input"]["strict_date"] = False
 
     assert validate_historical_arxiv_acquisitions(report) == []
+
+
+def test_schema_guard_recomputes_local_selection_from_recorded_versions():
+    from schema_validation import validate_historical_arxiv_acquisitions
+
+    report = historical_report_acquisition(
+        source_url="https://arxiv.org/pdf/1706.03762v2",
+        historical_cutoff="2020-06-01",
+        arxiv_version=2,
+        arxiv_version_date="2019-01-15",
+        version_selection_method="LOCAL_LATEST_VERSION_METADATA",
+        arxiv_version_history=[
+            {
+                "version": 2,
+                "identifier": "1706.03762v2",
+                "submitted_at": "2019-01-15",
+                "pdf_url": "https://arxiv.org/pdf/1706.03762v2",
+                "verified": True,
+            },
+            {
+                "version": 3,
+                "identifier": "1706.03762v3",
+                "submitted_at": "2020-01-01",
+                "pdf_url": "https://arxiv.org/pdf/1706.03762v3",
+                "verified": True,
+            },
+        ],
+        arxiv_version_history_complete=False,
+    )
+    report["input"]["cutoff"] = "2020-06-01"
+    report["papers"][0]["cutoff"] = "2020-06-01"
+    report["papers"][0]["arxiv_version"] = 2
+    errors = validate_historical_arxiv_acquisitions(report)
+
+    assert any("not the latest verified version" in error for error in errors)

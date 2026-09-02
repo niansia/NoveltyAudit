@@ -168,6 +168,8 @@ def validate_historical_arxiv_acquisitions(report: dict[str, Any]) -> list[str]:
                     errors.append(f"schema {path}.version_selection_method: local latest version was not independently verified")
                 if paper.get("arxiv_version") != source_version:
                     errors.append(f"schema {path}.arxiv_version: local selection does not match the verified latest paper version")
+                if source_version != recomputed:
+                    errors.append(f"schema {path}.arxiv_version: is not the latest verified version at or before the cutoff")
     return errors
 
 
