@@ -50,18 +50,60 @@ The third-party installer records anonymous install telemetry by default; set `D
 
 Download the current `scholarly-novelty-audit-v*.zip` and its `.sha256` file from [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases), then verify the archive:
 
-```bash
-sha256sum -c scholarly-novelty-audit-v*.zip.sha256       # Linux
-shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256  # macOS
+The commands below assume that the downloaded ZIP and checksum are the only matching release files in the current directory. They install to Codex's skill directory; for Claude Code, replace `.codex` with `.claude`. Other Agent Skills clients may use a different discovery path.
+
+#### Windows 10/11 (PowerShell)
+
+```powershell
+$archive = Get-ChildItem .\scholarly-novelty-audit-v*.zip | Select-Object -First 1
+$expected = ((Get-Content "$($archive.FullName).sha256" -Raw) -split '\s+')[0]
+$actual = (Get-FileHash -Algorithm SHA256 $archive.FullName).Hash
+if ($actual -ne $expected) { throw "SHA-256 verification failed" }
+
+Expand-Archive -LiteralPath $archive.FullName -DestinationPath . -Force
+$skillPath = "$env:USERPROFILE\.codex\skills\scholarly-novelty-audit"
+New-Item -ItemType Directory -Force -Path $skillPath | Out-Null
+Copy-Item .\scholarly-novelty-audit\* $skillPath -Recurse -Force
+python -m pip install -r "$skillPath\requirements.txt"
 ```
 
-Extract the verified archive, or clone the repository:
+#### Ubuntu and other mainstream Linux distributions
+
+```bash
+sha256sum -c scholarly-novelty-audit-v*.zip.sha256
+unzip -q scholarly-novelty-audit-v*.zip
+mkdir -p "$HOME/.codex/skills"
+cp -R scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
+```
+
+#### macOS
+
+```bash
+shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256
+unzip -q scholarly-novelty-audit-v*.zip
+mkdir -p "$HOME/.codex/skills"
+cp -R scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
+```
+
+To install from a repository clone instead of a release archive, clone the repository and copy its nested skill directory. On Windows PowerShell:
+
+```powershell
+git clone https://github.com/niansia/NoveltyAudit.git
+$skillPath = "$env:USERPROFILE\.codex\skills\scholarly-novelty-audit"
+New-Item -ItemType Directory -Force -Path $skillPath | Out-Null
+Copy-Item .\NoveltyAudit\scholarly-novelty-audit\* $skillPath -Recurse -Force
+python -m pip install -r "$skillPath\requirements.txt"
+```
+
+On Linux or macOS:
 
 ```bash
 git clone https://github.com/niansia/NoveltyAudit.git
-mkdir -p ~/.codex/skills
-cp -r NoveltyAudit/scholarly-novelty-audit ~/.codex/skills/scholarly-novelty-audit
-python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.txt
+mkdir -p "$HOME/.codex/skills"
+cp -R NoveltyAudit/scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
 ```
 
 Then ask your agent:
@@ -144,6 +186,16 @@ One workshop paper had no full text.
 </details>
 
 `BROAD` describes execution of a bounded protocol; it does not claim complete recall of all relevant literature.
+
+## Real failure modes
+
+Tests prove that the contracts execute; [`case-studies/`](case-studies/README.md) shows why the product exists:
+
+- **Missing killer paper** - a `SYNTHETIC` golden case where a novelty-threatening paper is absent from the supplied bibliography.
+- **Composition attack** - a `REVIEWER_GROUNDED` SafePatching case in which a reviewer-derived concern names SNIP, Super Mario, and HFT as a combination of prior mechanisms.
+- **Claim structure / residual novelty** - a `PUBLIC_CASE_STUDY` that decomposes RAG into BART, DPR, REALM, and the interaction that may remain novel.
+
+Every case has a human-readable README, a schema-validated `case.json`, stable paper identifiers, a historical cutoff, source and license provenance, and explicit limitations. No PDFs, review dumps, or confidential manuscripts are committed. The reviewer-grounded and public cases do not claim end-to-end NoveltyAudit performance.
 
 ## When to use it
 

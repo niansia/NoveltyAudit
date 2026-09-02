@@ -1,0 +1,162 @@
+{
+  "$schema": "../../case.schema.json",
+  "schema_version": "1.0",
+  "case_id": "public-claim-structure-rag-001",
+  "case_type": "PUBLIC_CASE_STUDY",
+  "failure_mode": "CLAIM_STRUCTURE_RESIDUAL_NOVELTY",
+  "evidence_status": "CURATED_LITERATURE_HYPOTHESIS",
+  "performance_status": "NOT_RUN",
+  "target": {
+    "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+    "claim": "A general-purpose generation recipe combines a pre-trained sequence-to-sequence parametric memory with a dense Wikipedia index accessed by a pre-trained neural retriever.",
+    "cutoff": "2020-05-21",
+    "identifiers": {
+      "arxiv": "2005.11401",
+      "openalex": "W3098425262",
+      "neurips_proceedings": "6b493230205f780e1bc26945df7481e5"
+    },
+    "public_urls": [
+      "https://arxiv.org/abs/2005.11401",
+      "https://papers.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html"
+    ]
+  },
+  "author_bibliography": {
+    "status": "NOT_ASSESSED",
+    "prior_ids": [],
+    "evidence_note": "Bibliography absence is not part of this public claim-structure case; it must be normalized separately before any scored audit."
+  },
+  "prior_works": [
+    {
+      "paper_id": "BART",
+      "title": "BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension",
+      "role": "Candidate prior for the pre-trained sequence-to-sequence generator facet.",
+      "earliest_public_date": "2019-10-29",
+      "identifiers": {
+        "arxiv": "1910.13461",
+        "doi": "10.18653/v1/2020.acl-main.703",
+        "openalex": "W2982399380",
+        "acl_anthology": "2020.acl-main.703"
+      },
+      "public_urls": [
+        "https://arxiv.org/abs/1910.13461",
+        "https://aclanthology.org/2020.acl-main.703/"
+      ],
+      "bibliography_status": "NOT_ASSESSED"
+    },
+    {
+      "paper_id": "DPR",
+      "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+      "role": "Candidate prior for learned dense passage retrieval over Wikipedia.",
+      "earliest_public_date": "2020-04-10",
+      "identifiers": {
+        "arxiv": "2004.04906",
+        "doi": "10.18653/v1/2020.emnlp-main.550",
+        "openalex": "W3015883388",
+        "semantic_scholar": "b26f2037f769d5ffc5f7bdcec2de8da28ec14bee",
+        "acl_anthology": "2020.emnlp-main.550"
+      },
+      "public_urls": [
+        "https://arxiv.org/abs/2004.04906",
+        "https://aclanthology.org/2020.emnlp-main.550/"
+      ],
+      "bibliography_status": "NOT_ASSESSED"
+    },
+    {
+      "paper_id": "REALM",
+      "title": "Retrieval Augmented Language Model Pre-Training",
+      "role": "Ancestor candidate for combining parametric language modeling with retrieved non-parametric memory.",
+      "earliest_public_date": "2020-02-21",
+      "identifiers": {
+        "arxiv": "2002.08909",
+        "openalex": "W3034671305",
+        "pmlr": "v119/guu20a"
+      },
+      "public_urls": [
+        "https://arxiv.org/abs/2002.08909",
+        "https://proceedings.mlr.press/v119/guu20a.html"
+      ],
+      "bibliography_status": "NOT_ASSESSED"
+    }
+  ],
+  "audit_expectations": {
+    "named_prior_ids": ["BART", "DPR", "REALM"],
+    "bibliography_absent_killer_ids": [],
+    "candidate_mps_to_test": [["BART", "DPR"]],
+    "bridge_source_ids": [],
+    "facets": [
+      {
+        "facet_id": "F1",
+        "description": "pre-trained sequence-to-sequence generator",
+        "candidate_prior_ids": ["BART"],
+        "status": "PUBLIC_PRIOR_CANDIDATE"
+      },
+      {
+        "facet_id": "F2",
+        "description": "learned dense retrieval over a Wikipedia index",
+        "candidate_prior_ids": ["DPR", "REALM"],
+        "status": "PUBLIC_PRIOR_CANDIDATE"
+      },
+      {
+        "facet_id": "F3",
+        "description": "parametric model coupled to retrieved non-parametric memory",
+        "candidate_prior_ids": ["REALM"],
+        "status": "ANCESTOR_SCOPE_REQUIRES_COMPARISON"
+      },
+      {
+        "facet_id": "F4",
+        "description": "generation-specific coupling, marginalization, and joint task fine-tuning",
+        "candidate_prior_ids": [],
+        "status": "RESIDUAL_NOVELTY_HYPOTHESIS"
+      }
+    ],
+    "residual_novelty_hypothesis": "The generation-specific integration and training recipe may remain distinct even though the seq2seq, dense-retrieval, and retrieval-augmented memory components were already public.",
+    "expected_classification": null,
+    "expected_behaviors": [
+      "Freeze component and interaction facets before searching.",
+      "Test BART+DPR as a candidate MPS without presuming that component coverage proves the interaction.",
+      "Use REALM as an ancestor candidate and compare task and output scope.",
+      "Preserve the generation-specific interaction as residual novelty unless eligible full-text evidence covers it.",
+      "Do not report a verdict or benchmark score until the complete audit obligations run."
+    ]
+  },
+  "provenance": {
+    "accessed_on": "2026-09-02",
+    "sources": [
+      {
+        "source_id": "neurips-rag-2020",
+        "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+        "url": "https://papers.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html",
+        "license": "Linked source; no redistribution license asserted by this case",
+        "usage": "Target bibliographic metadata and a project-authored paraphrase of the target claim."
+      },
+      {
+        "source_id": "acl-bart-2020",
+        "title": "BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension",
+        "url": "https://aclanthology.org/2020.acl-main.703/",
+        "license": "CC BY 4.0 as stated by ACL Anthology for materials published in or after 2016",
+        "usage": "Bibliographic metadata and project-authored component summary."
+      },
+      {
+        "source_id": "acl-dpr-2020",
+        "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+        "url": "https://aclanthology.org/2020.emnlp-main.550/",
+        "license": "CC BY 4.0 as stated by ACL Anthology for materials published in or after 2016",
+        "usage": "Bibliographic metadata and project-authored component summary."
+      },
+      {
+        "source_id": "pmlr-realm-2020",
+        "title": "Retrieval Augmented Language Model Pre-Training",
+        "url": "https://proceedings.mlr.press/v119/guu20a.html",
+        "license": "CC BY 4.0 under the PMLR publication agreement",
+        "usage": "Bibliographic metadata and project-authored ancestor-scope summary."
+      }
+    ],
+    "redistribution_note": "Only project-authored summaries, identifiers, and links are included. No paper PDF, abstract, or full-text passage is redistributed."
+  },
+  "limitations": [
+    "This is a curated audit hypothesis, not reviewer ground truth.",
+    "The proposed facets and candidate MPS have not received independent adjudication.",
+    "Author-bibliography membership has not been normalized for this case.",
+    "No end-to-end NoveltyAudit report or performance metric has been produced from this record."
+  ]
+}

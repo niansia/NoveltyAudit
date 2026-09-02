@@ -1,0 +1,97 @@
+{
+  "$schema": "../../case.schema.json",
+  "schema_version": "1.0",
+  "case_id": "synthetic-missing-killer-001",
+  "case_type": "SYNTHETIC",
+  "failure_mode": "MISSING_KILLER_PAPER",
+  "evidence_status": "SYNTHETIC_CONTRACT_EXAMPLE",
+  "performance_status": "CONTRACT_FIXTURE",
+  "target": {
+    "title": "Synthetic adaptive-memory and compression-aware selection claim",
+    "claim": "We introduce an architecture with adaptive memory and compression-aware selection.",
+    "cutoff": "2025-09-18",
+    "identifiers": {"fixture_audit_id": "fixture-composition-001"},
+    "public_urls": [
+      "https://github.com/niansia/NoveltyAudit/blob/main/scholarly-novelty-audit/tests/fixtures/composition-report.json"
+    ]
+  },
+  "author_bibliography": {
+    "status": "PROVIDED",
+    "prior_ids": ["B"],
+    "evidence_note": "The synthetic fixture supplies Paper B and deliberately omits Paper A."
+  },
+  "prior_works": [
+    {
+      "paper_id": "A",
+      "title": "Adaptive Memory Systems",
+      "role": "Covers the adaptive-memory facet and is the bibliography-absent killer candidate.",
+      "earliest_public_date": "2022-03-01",
+      "identifiers": {"synthetic_id": "A"},
+      "public_urls": [],
+      "bibliography_status": "NOT_IN_BIBLIOGRAPHY"
+    },
+    {
+      "paper_id": "B",
+      "title": "Compression-aware Selection",
+      "role": "Covers the compression-aware selection facet.",
+      "earliest_public_date": "2023-04-02",
+      "identifiers": {"synthetic_id": "B"},
+      "public_urls": [],
+      "bibliography_status": "IN_BIBLIOGRAPHY"
+    },
+    {
+      "paper_id": "C",
+      "title": "A Synthesis of Memory and Compression",
+      "role": "Supplies taxonomy bridge evidence for Papers A and B; it is not an MPS member.",
+      "earliest_public_date": "2024-05-03",
+      "identifiers": {"synthetic_id": "C"},
+      "public_urls": [],
+      "bibliography_status": "NOT_IN_BIBLIOGRAPHY"
+    }
+  ],
+  "audit_expectations": {
+    "named_prior_ids": ["A", "B", "C"],
+    "bibliography_absent_killer_ids": ["A"],
+    "candidate_mps_to_test": [["A", "B"]],
+    "bridge_source_ids": ["C"],
+    "facets": [
+      {
+        "facet_id": "F1",
+        "description": "adaptive memory",
+        "candidate_prior_ids": ["A"],
+        "status": "SYNTHETIC_EXACT"
+      },
+      {
+        "facet_id": "F2",
+        "description": "compression-aware selection",
+        "candidate_prior_ids": ["B"],
+        "status": "SYNTHETIC_FUNCTIONAL"
+      }
+    ],
+    "residual_novelty_hypothesis": "The exact interaction rule may survive if it differs from the bridge source.",
+    "expected_classification": "STRONG_COMPOSITION_RISK",
+    "expected_behaviors": [
+      "Rank Paper A among the Top-5 killer candidates.",
+      "Keep Paper C separate from the A+B Minimal Prior Set.",
+      "Report Paper A as absent from the supplied bibliography.",
+      "Do not present the synthetic result as real-world retrieval performance."
+    ]
+  },
+  "provenance": {
+    "accessed_on": "2026-09-02",
+    "sources": [
+      {
+        "source_id": "fixture-composition-001",
+        "title": "NoveltyAudit golden composition fixture",
+        "url": "https://github.com/niansia/NoveltyAudit/blob/main/scholarly-novelty-audit/tests/fixtures/composition-report.json",
+        "license": "Apache-2.0 project-authored synthetic fixture",
+        "usage": "Case structure, synthetic papers, bibliography status, MPS, bridge, and expected classification."
+      }
+    ],
+    "redistribution_note": "No third-party content is included. Every paper and evidence item is fictional."
+  },
+  "limitations": [
+    "Synthetic evidence cannot establish Recall@5, MRR, reviewer agreement, or field validity.",
+    "The fixture is intentionally constructed to exercise a successful composition verdict."
+  ]
+}

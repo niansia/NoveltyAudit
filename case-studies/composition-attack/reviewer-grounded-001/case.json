@@ -1,0 +1,146 @@
+{
+  "$schema": "../../case.schema.json",
+  "schema_version": "1.0",
+  "case_id": "reviewer-grounded-composition-09jvxsezpf",
+  "case_type": "REVIEWER_GROUNDED",
+  "failure_mode": "COMPOSITION_ATTACK",
+  "evidence_status": "REVIEWER_DERIVED",
+  "performance_status": "DIAGNOSTIC_ONLY",
+  "target": {
+    "title": "Towards Comprehensive and Efficient Post Safety Alignment of Large Language Models via Safety Patching",
+    "claim": "SafePatching combines safety-enhancement and over-safety patches with a target LLM while attempting to preserve utility.",
+    "cutoff": "2024-05-21",
+    "identifiers": {
+      "arxiv": "2405.13820",
+      "doi": "10.48550/arXiv.2405.13820",
+      "openalex": "W4399029227",
+      "openreview": "09JVxsEZPf",
+      "dataset_case_id": "09JVxsEZPf"
+    },
+    "public_urls": [
+      "https://arxiv.org/abs/2405.13820",
+      "https://openreview.net/forum?id=09JVxsEZPf"
+    ]
+  },
+  "author_bibliography": {
+    "status": "INSPECTED",
+    "prior_ids": ["SNIP", "SUPER_MARIO", "HFT"],
+    "evidence_note": "The public ICLR 2025 submission bibliography lists HFT on page 12, SNIP on page 13, and Super Mario on page 15."
+  },
+  "prior_works": [
+    {
+      "paper_id": "SNIP",
+      "title": "SNIP: Single-shot Network Pruning based on Connection Sensitivity",
+      "role": "Reviewer-named source for connection-sensitivity parameter-importance scoring.",
+      "earliest_public_date": "2018-10-04",
+      "identifiers": {
+        "arxiv": "1810.02340",
+        "doi": "10.48550/arXiv.1810.02340",
+        "openalex": "W2894740066",
+        "openreview": "B1VZqjAcYX"
+      },
+      "public_urls": [
+        "https://arxiv.org/abs/1810.02340",
+        "https://openreview.net/forum?id=B1VZqjAcYX"
+      ],
+      "bibliography_status": "IN_BIBLIOGRAPHY"
+    },
+    {
+      "paper_id": "SUPER_MARIO",
+      "title": "Language Models are Super Mario: Absorbing Abilities from Homologous Models as a Free Lunch",
+      "role": "Reviewer-named source for sparse delta-parameter retention followed by model merging.",
+      "earliest_public_date": "2023-11-06",
+      "identifiers": {
+        "arxiv": "2311.03099",
+        "doi": "10.48550/arXiv.2311.03099",
+        "openalex": "W4388482013"
+      },
+      "public_urls": ["https://arxiv.org/abs/2311.03099"],
+      "bibliography_status": "IN_BIBLIOGRAPHY"
+    },
+    {
+      "paper_id": "HFT",
+      "title": "HFT: Half Fine-Tuning for Large Language Models",
+      "role": "Reviewer-named source for updating one parameter subset while retaining another subset's prior capabilities.",
+      "earliest_public_date": "2024-04-29",
+      "identifiers": {
+        "arxiv": "2404.18466",
+        "doi": "10.18653/v1/2025.acl-long.626",
+        "openalex": "W4412945245"
+      },
+      "public_urls": [
+        "https://arxiv.org/abs/2404.18466",
+        "https://aclanthology.org/2025.acl-long.626/"
+      ],
+      "bibliography_status": "IN_BIBLIOGRAPHY"
+    }
+  ],
+  "audit_expectations": {
+    "named_prior_ids": ["SNIP", "SUPER_MARIO", "HFT"],
+    "bibliography_absent_killer_ids": [],
+    "candidate_mps_to_test": [],
+    "bridge_source_ids": [],
+    "facets": [
+      {
+        "facet_id": "F1",
+        "description": "parameter-importance scoring for patch selection",
+        "candidate_prior_ids": ["SNIP"],
+        "status": "REVIEWER_NAMED_OVERLAP_REQUIRES_FULLTEXT_BINDING"
+      },
+      {
+        "facet_id": "F2",
+        "description": "sparse retention or partial parameter updating",
+        "candidate_prior_ids": ["SUPER_MARIO", "HFT"],
+        "status": "REVIEWER_NAMED_OVERLAP_REQUIRES_FULLTEXT_BINDING"
+      },
+      {
+        "facet_id": "F3",
+        "description": "integration of safety and over-safety patches while preserving utility",
+        "candidate_prior_ids": [],
+        "status": "TARGET_INTERACTION_NOT_ADJUDICATED"
+      }
+    ],
+    "residual_novelty_hypothesis": "The target-specific construction and integration of two safety patches may remain distinct even if its scoring and retention components are known.",
+    "expected_classification": null,
+    "expected_behaviors": [
+      "Retrieve the reviewer-named works without using gold-title queries in a scored run.",
+      "Do not classify this as a bibliography-absent killer case.",
+      "Do not infer an MPS or composition verdict from the reviewer mention alone.",
+      "Apply the 2024-05-21 cutoff before using any prior-work evidence.",
+      "Fail closed if the target-specific interaction cannot be mapped to full-text evidence."
+    ]
+  },
+  "provenance": {
+    "accessed_on": "2026-09-02",
+    "sources": [
+      {
+        "source_id": "tudatalib-4988",
+        "title": "eacl2026-assessing-paper-novelty",
+        "url": "https://tudatalib.ulb.tu-darmstadt.de/handle/tudatalib/4988",
+        "license": "CC BY-NC 4.0",
+        "usage": "Dataset case ID, target metadata, not-novel label, reviewer-named priors, and a project-authored paraphrase of the novelty concern."
+      },
+      {
+        "source_id": "openreview-09jvxsezpf",
+        "title": "ICLR 2025 submission and public forum for SafePatching",
+        "url": "https://openreview.net/forum?id=09JVxsEZPf",
+        "license": "Article license is submission-specific; public comments are CC BY 4.0 under OpenReview Terms of Use",
+        "usage": "Stable submission identifier, public paper link, and bibliography verification; no review text is redistributed."
+      },
+      {
+        "source_id": "arxiv-2405.13820",
+        "title": "SafePatching arXiv record",
+        "url": "https://arxiv.org/abs/2405.13820",
+        "license": "Linked source; article license remains with the source record",
+        "usage": "Target title, authorship record, identifier, and first-public date."
+      }
+    ],
+    "redistribution_note": "This record contains identifiers and project-authored paraphrases only. It does not include the dataset archive, annotation JSON, review text, or paper PDF. Dataset-derived fields remain subject to the source terms and are not relicensed as Apache-2.0."
+  },
+  "limitations": [
+    "The dataset annotation is reviewer-derived but this case has not received independent two-person facet adjudication.",
+    "Gold-title resolution and graph diagnostics are not a blind retrieval benchmark.",
+    "The reviewer named a combination of prior ideas but did not establish a validated Minimal Prior Set under NoveltyAudit's evidence contract.",
+    "No end-to-end Recall@5, MRR, verdict, or reviewer-prediction result is reported."
+  ]
+}

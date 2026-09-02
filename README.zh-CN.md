@@ -43,18 +43,60 @@ skills CLI 只安装 skill package，不会安装 Python dependencies。首次�
 
 从 [GitHub Releases](https://github.com/niansia/NoveltyAudit/releases) 下载当前的 `scholarly-novelty-audit-v*.zip` 和 `.sha256`，然后验证文件：
 
-```bash
-sha256sum -c scholarly-novelty-audit-v*.zip.sha256       # Linux
-shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256  # macOS
+以下命令假设当前文件夹中只有一组名称匹配的 release ZIP 和 checksum。示例安装到 Codex 的 skill 目录；Claude Code 请将 `.codex` 改为 `.claude`，其他 Agent Skills client 可能使用不同的发现路径。
+
+#### Windows 10／11（PowerShell）
+
+```powershell
+$archive = Get-ChildItem .\scholarly-novelty-audit-v*.zip | Select-Object -First 1
+$expected = ((Get-Content "$($archive.FullName).sha256" -Raw) -split '\s+')[0]
+$actual = (Get-FileHash -Algorithm SHA256 $archive.FullName).Hash
+if ($actual -ne $expected) { throw "SHA-256 verification failed" }
+
+Expand-Archive -LiteralPath $archive.FullName -DestinationPath . -Force
+$skillPath = "$env:USERPROFILE\.codex\skills\scholarly-novelty-audit"
+New-Item -ItemType Directory -Force -Path $skillPath | Out-Null
+Copy-Item .\scholarly-novelty-audit\* $skillPath -Recurse -Force
+python -m pip install -r "$skillPath\requirements.txt"
 ```
 
-验证后解压；也可以直接 clone：
+#### Ubuntu 和其他主流 Linux 发行版
+
+```bash
+sha256sum -c scholarly-novelty-audit-v*.zip.sha256
+unzip -q scholarly-novelty-audit-v*.zip
+mkdir -p "$HOME/.codex/skills"
+cp -R scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
+```
+
+#### macOS
+
+```bash
+shasum -a 256 -c scholarly-novelty-audit-v*.zip.sha256
+unzip -q scholarly-novelty-audit-v*.zip
+mkdir -p "$HOME/.codex/skills"
+cp -R scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
+```
+
+如果要从 repository clone 安装，而不是使用 release archive，请 clone repo 并复制其中的 skill 目录。Windows PowerShell：
+
+```powershell
+git clone https://github.com/niansia/NoveltyAudit.git
+$skillPath = "$env:USERPROFILE\.codex\skills\scholarly-novelty-audit"
+New-Item -ItemType Directory -Force -Path $skillPath | Out-Null
+Copy-Item .\NoveltyAudit\scholarly-novelty-audit\* $skillPath -Recurse -Force
+python -m pip install -r "$skillPath\requirements.txt"
+```
+
+Linux 或 macOS：
 
 ```bash
 git clone https://github.com/niansia/NoveltyAudit.git
-mkdir -p ~/.codex/skills
-cp -r NoveltyAudit/scholarly-novelty-audit ~/.codex/skills/scholarly-novelty-audit
-python -m pip install -r ~/.codex/skills/scholarly-novelty-audit/requirements.txt
+mkdir -p "$HOME/.codex/skills"
+cp -R NoveltyAudit/scholarly-novelty-audit "$HOME/.codex/skills/"
+python3 -m pip install -r "$HOME/.codex/skills/scholarly-novelty-audit/requirements.txt"
 ```
 
 然后对 agent 说：
@@ -128,6 +170,16 @@ One workshop paper had no full text.
 </details>
 
 `BROAD` 只表示这套有界 protocol 已被广泛执行，不表示已经找回所有相关文献。
+
+## 真实失败模式案例
+
+测试证明程序契约可以执行；[`case-studies/`](case-studies/README.md) 说明这个产品为什么值得存在：
+
+- **漏掉 killer paper**：`SYNTHETIC` golden case，威胁 novelty 的 Paper A 不在作者提供的 bibliography 中。
+- **多篇组合攻击**：`REVIEWER_GROUNDED` SafePatching 案例，reviewer-derived concern 同时指向 SNIP、Super Mario 和 HFT。
+- **Claim structure／residual novelty**：`PUBLIC_CASE_STUDY`，把 RAG 拆成 BART、DPR、REALM，以及可能仍然保留的 interaction。
+
+每个案例都包含供人阅读的 README、通过 schema 验证的 `case.json`、稳定标识符、历史 cutoff、来源／许可和限制。Repo 不收录第三方 PDF、review dump 或机密稿件；reviewer-grounded 和 public case 也不会冒充端到端效果。
 
 ## 适合与不适合的场景
 
