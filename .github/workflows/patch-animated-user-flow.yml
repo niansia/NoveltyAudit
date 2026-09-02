@@ -1,15 +1,15 @@
 name: Patch animated README flow
 
-on:
+'on':
   push:
-    branches: ["docs/animated-user-flow"]
+    branches:
+      - docs/animated-user-flow
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,45 +19,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Insert the user-facing animated flow
+        run: python -c "import base64; exec(base64.b64decode('ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCB4bWwuZXRyZWUuRWxlbWVudFRyZWUgYXMgRVQKCnN2ZyA9IFBhdGgoImRvY3MvYXNzZXRzL25vdmVsdHlhdWRpdC11c2VyLWZsb3cuc3ZnIikKRVQucGFyc2Uoc3ZnKQpzdmdfdGV4dCA9IHN2Zy5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKaWYgIjxzY3JpcHQiIGluIHN2Z190ZXh0LmNhc2Vmb2xkKCkgb3IgImZvcmVpZ25vYmplY3QiIGluIHN2Z190ZXh0LmNhc2Vmb2xkKCk6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJhbmltYXRlZCBTVkcgY29udGFpbnMgZGlzYWxsb3dlZCBhY3RpdmUtY29udGVudCBlbGVtZW50cyIpCmlmICdyZXBlYXRDb3VudD0iaW5kZWZpbml0ZSInIG5vdCBpbiBzdmdfdGV4dDoKICAgIHJhaXNlIFN5c3RlbUV4aXQoImFuaW1hdGVkIFNWRyBpcyBub3QgY29uZmlndXJlZCB0byBsb29wIikKCnJlYWRtZSA9IFBhdGgoIlJFQURNRS5tZCIpCnRleHQgPSByZWFkbWUucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCm1hcmtlciA9ICIjIyBXaGF0IGhhcHBlbnMgaW4gYW4gYXVkaXQiCmlmIG1hcmtlciBpbiB0ZXh0OgogICAgcmFpc2UgU3lzdGVtRXhpdCgwKQpvbGQgPSAiIiJUaGUgcmVzdWx0IGlzIG5vdCBhIG5vdmVsdHkgc2NvcmUuIEl0IGlzIGFuIGF1ZGl0YWJsZSBjbGFpbSBtYXAsIGhpc3RvcmljYWxseSBlbGlnaWJsZSBldmlkZW5jZSwgdGhlIHNtYWxsZXN0IHF1YWxpZnlpbmcgc2V0IG9mIHByaW9yIHBhcGVycywgYnJpZGdlIGV2aWRlbmNlIGJldHdlZW4gdGhlbSwgcmVtYWluaW5nIG5vdmVsdHksIGFuZCBhbiBleHBsaWNpdCBhY2NvdW50IG9mIHdoYXQgdGhlIHNlYXJjaCBjb3VsZCBub3QgZXN0YWJsaXNoLgoKIyMgUXVpY2sgc3RhcnQiIiIKbmV3ID0gIiIiVGhlIHJlc3VsdCBpcyBub3QgYSBub3ZlbHR5IHNjb3JlLiBJdCBpcyBhbiBhdWRpdGFibGUgY2xhaW0gbWFwLCBoaXN0b3JpY2FsbHkgZWxpZ2libGUgZXZpZGVuY2UsIHRoZSBzbWFsbGVzdCBxdWFsaWZ5aW5nIHNldCBvZiBwcmlvciBwYXBlcnMsIGJyaWRnZSBldmlkZW5jZSBiZXR3ZWVuIHRoZW0sIHJlbWFpbmluZyBub3ZlbHR5LCBhbmQgYW4gZXhwbGljaXQgYWNjb3VudCBvZiB3aGF0IHRoZSBzZWFyY2ggY291bGQgbm90IGVzdGFibGlzaC4KCiMjIFdoYXQgaGFwcGVucyBpbiBhbiBhdWRpdAoKPHAgYWxpZ249XCJjZW50ZXJcIj4KICA8aW1nIHNyYz1cImRvY3MvYXNzZXRzL25vdmVsdHlhdWRpdC11c2VyLWZsb3cuc3ZnXCIgYWx0PVwiQW5pbWF0ZWQgTm92ZWx0eUF1ZGl0IGZsb3c6IGEgcmVzZWFyY2ggY2xhaW0gYW5kIGhpc3RvcmljYWwgY3V0b2ZmIGFyZSBmcm96ZW4gaW50byBmYWNldHMsIHNlYXJjaGVkIGFnYWluc3QgZWFybGllciB3b3JrLCBjaGVja2VkIGFnYWluc3QgZGF0ZXMgYW5kIGZ1bGwgdGV4dCwgcmVkdWNlZCB0byBhIE1pbmltYWwgUHJpb3IgU2V0LCB0ZXN0ZWQgZm9yIGhpc3RvcmljYWwgYnJpZGdlcywgYW5kIHJldHVybmVkIGFzIGFuIGV2aWRlbmNlLWxpbmtlZCBhdWRpdCByZXBvcnRcIiB3aWR0aD1cIjEwMCVcIj4KPC9wPgoKR2l2ZSBOb3ZlbHR5QXVkaXQgYSAqKnJlc2VhcmNoIGNsYWltKiogYW5kIGEgKipoaXN0b3JpY2FsIGN1dG9mZioqLiBJdCBmcmVlemVzIHRoZSBjbGFpbSBiZWZvcmUgc2VhcmNoaW5nLCBmaW5kcyBlYXJsaWVyIHdvcmsgYWNyb3NzIHNjaG9sYXJseSBzb3VyY2VzLCB2ZXJpZmllcyBkYXRlcyBhbmQgZnVsbC10ZXh0IGV2aWRlbmNlLCBpZGVudGlmaWVzIHRoZSBzbWFsbGVzdCBxdWFsaWZ5aW5nIHNldCBvZiBvbmUgdG8gdGhyZWUgcHJpb3IgcGFwZXJzLCBhbmQgY2hlY2tzIHdoZXRoZXIgdGhvc2UgcGFwZXJzIHdlcmUgbWVhbmluZ2Z1bGx5IGNvbm5lY3RlZCBiZWZvcmUgdGhlIGN1dG9mZi4KClRoZSBvdXRwdXQgaXMgYSB0cmFjZWFibGUgcmVwb3J0IG9mICoqa2lsbGVyIGNhbmRpZGF0ZXMqKiwgKipNaW5pbWFsIFByaW9yIFNldHMqKiwgKipicmlkZ2UgZXZpZGVuY2UqKiwgKipyZXNpZHVhbCBub3ZlbHR5KiosIGFuZCAqKnNlYXJjaCBnYXBzKiouIE1pc3NpbmcgZGF0ZXMsIGZ1bGwgdGV4dCwgb3IgcmVxdWlyZWQgZ3JhcGggY292ZXJhZ2UgY2FuIGZvcmNlIGBJTkNPTkNMVVNJVkVgIGluc3RlYWQgb2YgYSByZWFzc3VyaW5nIGd1ZXNzLgoKIyMgUXVpY2sgc3RhcnQiIiIKaWYgb2xkIG5vdCBpbiB0ZXh0OgogICAgcmFpc2UgU3lzdGVtRXhpdCgiUkVBRE1FIGluc2VydGlvbiB0YXJnZXQgd2FzIG5vdCBmb3VuZCIpCnJlYWRtZS53cml0ZV90ZXh0KHRleHQucmVwbGFjZShvbGQsIG5ldywgMSksIGVuY29kaW5nPSJ1dGYtOCIpCg=='))"
+      - name: Commit the README update when needed
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import xml.etree.ElementTree as ET
-
-          svg = Path("docs/assets/noveltyaudit-user-flow.svg")
-          ET.parse(svg)
-          svg_text = svg.read_text(encoding="utf-8")
-          if "<script" in svg_text.casefold() or "foreignObject" in svg_text:
-              raise SystemExit("animated SVG contains a disallowed active-content element")
-          if 'repeatCount="indefinite"' not in svg_text:
-              raise SystemExit("animated SVG is not configured to loop")
-
-          readme = Path("README.md")
-          text = readme.read_text(encoding="utf-8")
-          old = """The result is not a novelty score. It is an auditable claim map, historically eligible evidence, the smallest qualifying set of prior papers, bridge evidence between them, remaining novelty, and an explicit account of what the search could not establish.
-
-## Quick start"""
-          new = """The result is not a novelty score. It is an auditable claim map, historically eligible evidence, the smallest qualifying set of prior papers, bridge evidence between them, remaining novelty, and an explicit account of what the search could not establish.
-
-## What happens in an audit
-
-<p align=\"center\">
-  <img src=\"docs/assets/noveltyaudit-user-flow.svg\" alt=\"Animated NoveltyAudit flow: a research claim and historical cutoff are frozen into facets, searched against earlier work, checked against dates and full text, reduced to a Minimal Prior Set, tested for historical bridges, and returned as an evidence-linked audit report\" width=\"100%\">
-</p>
-
-Give NoveltyAudit a **research claim** and a **historical cutoff**. It freezes the claim before searching, finds earlier work across scholarly sources, verifies dates and full-text evidence, identifies the smallest qualifying set of one to three prior papers, and checks whether those papers were meaningfully connected before the cutoff.
-
-The output is a traceable report of **killer candidates**, **Minimal Prior Sets**, **bridge evidence**, **residual novelty**, and **search gaps**. Missing dates, full text, or required graph coverage can force `INCONCLUSIVE` instead of a reassuring guess.
-
-## Quick start"""
-          if old not in text:
-              raise SystemExit("README insertion target was not found")
-          readme.write_text(text.replace(old, new, 1), encoding="utf-8")
-          PY
-      - name: Commit the validated README update
-        shell: bash
-        run: |
+          if git diff --quiet -- README.md; then
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md
