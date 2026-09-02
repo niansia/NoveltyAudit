@@ -21,6 +21,16 @@ NoveltyAudit is an evidence-first Agent Skill for adversarial scholarly novelty 
 
 The result is not a novelty score. It is an auditable claim map, historically eligible evidence, the smallest qualifying set of prior papers, bridge evidence between them, remaining novelty, and an explicit account of what the search could not establish.
 
+## What happens in an audit
+
+<p align="center">
+  <img src="docs/assets/noveltyaudit-user-flow.svg" alt="Animated NoveltyAudit flow: a research claim and historical cutoff are frozen into facets, searched against earlier work, checked against dates and full text, reduced to a Minimal Prior Set, tested for historical bridges, and returned as an evidence-linked audit report" width="100%">
+</p>
+
+Give NoveltyAudit a **research claim** and a **historical cutoff**. It freezes the claim before searching, finds earlier work across scholarly sources, verifies dates and full-text evidence, identifies the smallest qualifying set of one to three prior papers, and checks whether those papers were meaningfully connected before the cutoff.
+
+The output is a traceable report of **killer candidates**, **Minimal Prior Sets**, **bridge evidence**, **residual novelty**, and **search gaps**. Missing dates, full text, or required graph coverage can force `INCONCLUSIVE` instead of a reassuring guess.
+
 ## Quick start
 
 ### Requirements

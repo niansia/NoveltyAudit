@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">How a NoveltyAudit audit works</title>
+  <desc id="desc">A looping, user-facing flow from a research claim through claim freezing, prior-work search, date and full-text verification, Minimal Prior Set construction, historical bridge analysis, and an auditable report.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1020"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="active" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7C3AED" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="reportGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7C3AED" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#2563EB" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#0F766E" stop-opacity="0.24"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#FFFFFF" stroke-opacity="0.025"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#64748B"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="460" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="460" rx="28" fill="url(#grid)"/>
+  <rect x="1" y="1" width="1198" height="458" rx="27" fill="none" stroke="#334155"/>
+
+  <g font-family="Inter, Segoe UI, Arial, sans-serif">
+    <text x="48" y="54" font-size="29" font-weight="700" fill="#F8FAFC">From research claim to auditable novelty risk</text>
+    <text x="48" y="82" font-size="16" fill="#A5B4FC">NoveltyAudit searches for what one paper—or a connected set of papers—already covered before your cutoff.</text>
+
+    <!-- Connector track -->
+    <g fill="none" stroke="#475569" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)">
+      <path d="M220 192H246"/>
+      <path d="M410 192H426"/>
+      <path d="M590 192H606"/>
+      <path d="M770 192H786"/>
+      <path d="M950 192H966"/>
+    </g>
+
+    <!-- Input card -->
+    <g>
+      <rect x="40" y="120" width="180" height="144" rx="18" fill="#151B2F" stroke="#475569" stroke-width="2"/>
+      <rect x="40" y="120" width="180" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="1;1;0;0;1" keyTimes="0;0.105;0.125;0.98;1"/>
+      </rect>
+      <circle cx="67" cy="147" r="13" fill="#312E81" stroke="#A78BFA"/>
+      <path d="M61 143h12M61 149h8" stroke="#EDE9FE" stroke-width="2" stroke-linecap="round"/>
+      <text x="89" y="153" font-size="13" font-weight="700" letter-spacing="1.4" fill="#C4B5FD">YOUR CLAIM</text>
+      <text x="58" y="189" font-size="20" font-weight="700" fill="#F8FAFC">“First to combine</text>
+      <text x="58" y="216" font-size="20" font-weight="700" fill="#F8FAFC">A + B”</text>
+      <text x="58" y="244" font-size="13" fill="#94A3B8">plus a historical cutoff</text>
+    </g>
+
+    <!-- Step 1 -->
+    <g>
+      <rect x="250" y="120" width="160" height="144" rx="18" fill="#151B2F" stroke="#334155" stroke-width="2"/>
+      <rect x="250" y="120" width="160" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.105;0.125;0.23;0.25;1"/>
+      </rect>
+      <circle cx="276" cy="147" r="14" fill="#1E293B" stroke="#64748B"/>
+      <text x="276" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#E2E8F0">1</text>
+      <text x="298" y="152" font-size="13" font-weight="700" letter-spacing="1.2" fill="#C4B5FD">FREEZE</text>
+      <text x="268" y="188" font-size="19" font-weight="700" fill="#F8FAFC">Split the claim</text>
+      <text x="268" y="214" font-size="19" font-weight="700" fill="#F8FAFC">into facets</text>
+      <text x="268" y="241" font-size="13" fill="#94A3B8">before retrieval starts</text>
+    </g>
+
+    <!-- Step 2 -->
+    <g>
+      <rect x="430" y="120" width="160" height="144" rx="18" fill="#151B2F" stroke="#334155" stroke-width="2"/>
+      <rect x="430" y="120" width="160" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.23;0.25;0.355;0.375;1"/>
+      </rect>
+      <circle cx="456" cy="147" r="14" fill="#1E293B" stroke="#64748B"/>
+      <text x="456" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#E2E8F0">2</text>
+      <text x="478" y="152" font-size="13" font-weight="700" letter-spacing="1.2" fill="#C4B5FD">SEARCH</text>
+      <text x="448" y="188" font-size="19" font-weight="700" fill="#F8FAFC">Find earlier</text>
+      <text x="448" y="214" font-size="19" font-weight="700" fill="#F8FAFC">prior work</text>
+      <text x="448" y="241" font-size="13" fill="#94A3B8">across scholarly sources</text>
+    </g>
+
+    <!-- Step 3 -->
+    <g>
+      <rect x="610" y="120" width="160" height="144" rx="18" fill="#151B2F" stroke="#334155" stroke-width="2"/>
+      <rect x="610" y="120" width="160" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.355;0.375;0.48;0.5;1"/>
+      </rect>
+      <circle cx="636" cy="147" r="14" fill="#1E293B" stroke="#64748B"/>
+      <text x="636" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#E2E8F0">3</text>
+      <text x="658" y="152" font-size="13" font-weight="700" letter-spacing="1.2" fill="#C4B5FD">VERIFY</text>
+      <text x="628" y="188" font-size="19" font-weight="700" fill="#F8FAFC">Check dates +</text>
+      <text x="628" y="214" font-size="19" font-weight="700" fill="#F8FAFC">full text</text>
+      <text x="628" y="241" font-size="13" fill="#94A3B8">bind evidence to facets</text>
+    </g>
+
+    <!-- Step 4 -->
+    <g>
+      <rect x="790" y="120" width="160" height="144" rx="18" fill="#151B2F" stroke="#334155" stroke-width="2"/>
+      <rect x="790" y="120" width="160" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.48;0.5;0.605;0.625;1"/>
+      </rect>
+      <circle cx="816" cy="147" r="14" fill="#1E293B" stroke="#64748B"/>
+      <text x="816" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#E2E8F0">4</text>
+      <text x="838" y="152" font-size="13" font-weight="700" letter-spacing="1.2" fill="#C4B5FD">COMPOSE</text>
+      <text x="808" y="188" font-size="19" font-weight="700" fill="#F8FAFC">Build the</text>
+      <text x="808" y="214" font-size="19" font-weight="700" fill="#F8FAFC">smallest set</text>
+      <text x="808" y="241" font-size="13" fill="#94A3B8">Minimal Prior Set ≤ 3</text>
+    </g>
+
+    <!-- Step 5 -->
+    <g>
+      <rect x="970" y="120" width="190" height="144" rx="18" fill="#151B2F" stroke="#334155" stroke-width="2"/>
+      <rect x="970" y="120" width="190" height="144" rx="18" fill="url(#active)" stroke="#A78BFA" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.605;0.625;0.73;0.75;1"/>
+      </rect>
+      <circle cx="996" cy="147" r="14" fill="#1E293B" stroke="#64748B"/>
+      <text x="996" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#E2E8F0">5</text>
+      <text x="1018" y="152" font-size="13" font-weight="700" letter-spacing="1.2" fill="#C4B5FD">CONNECT</text>
+      <text x="988" y="188" font-size="19" font-weight="700" fill="#F8FAFC">Test historical</text>
+      <text x="988" y="214" font-size="19" font-weight="700" fill="#F8FAFC">bridges</text>
+      <text x="988" y="241" font-size="13" fill="#94A3B8">not similarity alone</text>
+    </g>
+
+    <!-- Moving audit token -->
+    <g filter="url(#softGlow)">
+      <circle r="6" fill="#DDD6FE">
+        <animateMotion dur="9s" repeatCount="indefinite" path="M220 192 L246 192 L410 192 L426 192 L590 192 L606 192 L770 192 L786 192 L950 192 L966 192 L1160 192"/>
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;1;1;0;0" keyTimes="0;0.02;0.74;0.76;1"/>
+      </circle>
+    </g>
+
+    <!-- Report output -->
+    <g>
+      <rect x="40" y="300" width="1120" height="128" rx="20" fill="#101827" stroke="#334155" stroke-width="2"/>
+      <rect x="40" y="300" width="1120" height="128" rx="20" fill="url(#reportGlow)" stroke="#34D399" stroke-width="3" opacity="0">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0;0;1;1;0" keyTimes="0;0.74;0.77;0.97;1"/>
+      </rect>
+      <g opacity="0.72">
+        <animate attributeName="opacity" dur="12s" repeatCount="indefinite" values="0.72;0.72;1;1;0.72" keyTimes="0;0.74;0.77;0.97;1"/>
+        <circle cx="72" cy="336" r="15" fill="#064E3B" stroke="#34D399"/>
+        <path d="M65 336l5 5 10-12" fill="none" stroke="#D1FAE5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="98" y="343" font-size="17" font-weight="700" letter-spacing="1.1" fill="#A7F3D0">AUDIT REPORT</text>
+        <text x="98" y="374" font-size="23" font-weight="700" fill="#F8FAFC">Evidence-linked findings, not a novelty score</text>
+        <text x="98" y="397" font-size="14" fill="#94A3B8">Every conclusion carries dates, evidence, search limits,</text>
+        <text x="98" y="415" font-size="14" fill="#94A3B8">and an explicit path to INCONCLUSIVE.</text>
+      </g>
+
+      <g transform="translate(650 322)">
+        <rect width="225" height="34" rx="17" fill="#1E293B" stroke="#475569"/>
+        <text x="112.5" y="22" text-anchor="middle" font-size="14" font-weight="600" fill="#E2E8F0">Top killer candidates</text>
+        <rect x="239" width="225" height="34" rx="17" fill="#1E293B" stroke="#475569"/>
+        <text x="351.5" y="22" text-anchor="middle" font-size="14" font-weight="600" fill="#E2E8F0">Minimal Prior Set</text>
+        <rect y="48" width="225" height="34" rx="17" fill="#1E293B" stroke="#475569"/>
+        <text x="112.5" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#E2E8F0">Bridge evidence</text>
+        <rect x="239" y="48" width="225" height="34" rx="17" fill="#1E293B" stroke="#475569"/>
+        <text x="351.5" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#E2E8F0">Residual novelty + gaps</text>
+      </g>
+    </g>
+  </g>
+</svg>
