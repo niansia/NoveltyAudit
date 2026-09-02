@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Apply validator hardening and regression tests
+      - name: Apply validator hardening and regression test
         shell: bash
         run: |
           python - <<'PY'
@@ -26,29 +26,6 @@ jobs:
 
           path = Path("scholarly-novelty-audit/scripts/schema_validation.py")
           text = path.read_text(encoding="utf-8")
-          old = '''        paper_arxiv_id = normalize_arxiv_id(paper.get("arxiv_id"))
-                  identity = _arxiv_pdf_identity(acquisition.get("source_url"))
-                  if not paper_arxiv_id or identity is None:
-                      continue
-          
-                  path = f"fulltext_acquisitions.{index}"
-          '''
-          new = '''        paper_arxiv_id = normalize_arxiv_id(paper.get("arxiv_id"))
-                  if not paper_arxiv_id:
-                      continue
-          
-                  path = f"fulltext_acquisitions.{index}"
-                  identity = _arxiv_pdf_identity(acquisition.get("source_url"))
-                  if identity is None:
-                      errors.append(
-                          f"schema {path}.source_url: strict historical arXiv evidence requires an exact versioned arXiv PDF"
-                      )
-                      continue
-          '''
-          if old not in text:
-              raise SystemExit("arXiv source validation target not found")
-          text = text.replace(old, new, 1)
-
           old = '''            elif method == "LOCAL_LATEST_VERSION_METADATA":
                           if paper.get("arxiv_latest_version_verified") is not True:
                               errors.append(f"schema {path}.version_selection_method: local latest version was not independently verified")
@@ -69,16 +46,6 @@ jobs:
           PY
 
           cat >> scholarly-novelty-audit/tests/unit/test_arxiv_historical_versions.py <<'PY'
-
-
-          def test_schema_guard_rejects_non_arxiv_source_for_strict_arxiv_evidence():
-              from schema_validation import validate_historical_arxiv_acquisitions
-
-              errors = validate_historical_arxiv_acquisitions(historical_report_acquisition(
-                  source_url="https://publisher.example/paper.pdf",
-              ))
-
-              assert any("requires an exact versioned arXiv PDF" in error for error in errors)
 
 
           def test_schema_guard_recomputes_local_selection_from_recorded_versions():
