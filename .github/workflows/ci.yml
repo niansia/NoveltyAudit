@@ -43,8 +43,8 @@ jobs:
           python-version: "3.12"
       - run: python -m pip wheel . --no-deps --wheel-dir dist
       - run: python -c "import glob,zipfile; p=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(p).namelist(); assert all(n.startswith('scholarly_novelty_audit-') for n in names), names"
-      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.1.zip
-      - run: python -c "import zipfile; archive=zipfile.ZipFile('dist/scholarly-novelty-audit-v0.3.1.zip'); names=archive.namelist(); assert 'scholarly-novelty-audit/SKILL.md' in names; assert 'scholarly-novelty-audit/LICENSE' in names; assert archive.read('scholarly-novelty-audit/LICENSE') == open('LICENSE','rb').read(); assert not any('/tests/' in n or '/benchmark/' in n or '__pycache__' in n for n in names), names"
+      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.2.zip
+      - run: python -c "import zipfile; archive=zipfile.ZipFile('dist/scholarly-novelty-audit-v0.3.2.zip'); names=archive.namelist(); assert 'scholarly-novelty-audit/SKILL.md' in names; assert 'scholarly-novelty-audit/LICENSE' in names; assert archive.read('scholarly-novelty-audit/LICENSE') == open('LICENSE','rb').read(); assert not any('/tests/' in n or '/benchmark/' in n or '__pycache__' in n for n in names), names"
 
   clean-runtime-install:
     strategy:
@@ -56,8 +56,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.1.zip
-      - run: python -m zipfile -e dist/scholarly-novelty-audit-v0.3.1.zip "$RUNNER_TEMP/noveltyaudit-runtime"
+      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.2.zip
+      - run: python -m zipfile -e dist/scholarly-novelty-audit-v0.3.2.zip "$RUNNER_TEMP/noveltyaudit-runtime"
       - run: python -m venv "$RUNNER_TEMP/noveltyaudit-venv"
       - run: time "$RUNNER_TEMP/noveltyaudit-venv/bin/python" -m pip install -r "$RUNNER_TEMP/noveltyaudit-runtime/scholarly-novelty-audit/requirements.txt"
       - run: >-
