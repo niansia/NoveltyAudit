@@ -15,6 +15,22 @@
     "doi": {"type": ["string", "null"]},
     "arxiv_id": {"type": ["string", "null"]},
     "arxiv_version": {"type": ["integer", "null"], "minimum": 1},
+    "arxiv_latest_version_verified": {"type": "boolean"},
+    "arxiv_versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version", "identifier", "submitted_at", "pdf_url", "verified"],
+        "properties": {
+          "version": {"type": "integer", "minimum": 1},
+          "identifier": {"type": "string", "pattern": "v[1-9][0-9]*$"},
+          "submitted_at": {"type": "string", "format": "date"},
+          "pdf_url": {"type": ["string", "null"], "format": "uri"},
+          "verified": {"const": true}
+        },
+        "additionalProperties": false
+      }
+    },
     "url": {"type": ["string", "null"], "format": "uri-reference"},
     "fulltext_urls": {"type": "array", "items": {"type": "string", "format": "uri"}, "uniqueItems": true},
     "providers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},

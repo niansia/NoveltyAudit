@@ -9,7 +9,7 @@ from typing import Any, Iterable
 
 
 DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.I)
-ARXIV_PREFIX = re.compile(r"^(?:https?://arxiv\.org/(?:abs|pdf)/|arxiv:\s*)", re.I)
+ARXIV_PREFIX = re.compile(r"^(?:https?://(?:(?:www|export)\.)?arxiv\.org/(?:abs|pdf)/|arxiv:\s*)", re.I)
 ARXIV_VERSION = re.compile(r"v\d+$", re.I)
 NON_WORD = re.compile(r"[^\w]+", re.UNICODE)
 SPACE = re.compile(r"\s+")
@@ -27,7 +27,7 @@ def split_arxiv_id(value: Any) -> tuple[str | None, int | None]:
     if not value:
         return None, None
     arxiv_id = unicodedata.normalize("NFKC", str(value)).strip()
-    arxiv_id = ARXIV_PREFIX.sub("", arxiv_id).replace(".pdf", "")
+    arxiv_id = re.sub(r"\.pdf$", "", ARXIV_PREFIX.sub("", arxiv_id), flags=re.I)
     match = re.search(r"v(\d+)$", arxiv_id, re.I)
     version = int(match.group(1)) if match else None
     base_id = ARXIV_VERSION.sub("", arxiv_id).strip().casefold()
@@ -81,7 +81,11 @@ def normalize_paper(record: dict[str, Any], provider: str | None = None) -> dict
     external_ids = source.get("external_ids") or source.get("externalIds") or {}
     doi = normalize_doi(source.get("doi") or external_ids.get("DOI") or external_ids.get("doi"))
     raw_arxiv_id = source.get("arxiv_id") or external_ids.get("ArXiv") or external_ids.get("arxiv")
-    arxiv_id, arxiv_version = split_arxiv_id(raw_arxiv_id)
+    arxiv_id, parsed_arxiv_version = split_arxiv_id(raw_arxiv_id)
+    supplied_arxiv_version = source.get("arxiv_version")
+    arxiv_version = parsed_arxiv_version
+    if arxiv_version is None and isinstance(supplied_arxiv_version, int) and not isinstance(supplied_arxiv_version, bool) and supplied_arxiv_version >= 1:
+        arxiv_version = supplied_arxiv_version
     authors = [normalize_author(author) for author in (source.get("authors") or [])]
     providers = _string_list(source.get("providers"))
     if provider and provider not in providers:
@@ -98,6 +102,8 @@ def normalize_paper(record: dict[str, Any], provider: str | None = None) -> dict
         "doi": doi,
         "arxiv_id": arxiv_id,
         "arxiv_version": arxiv_version,
+        "arxiv_latest_version_verified": bool(source.get("arxiv_latest_version_verified", False)),
+        "arxiv_versions": list(source.get("arxiv_versions") or []),
         "url": source.get("url"),
         "providers": providers,
         "provider_ids": dict(source.get("provider_ids") or {}),
