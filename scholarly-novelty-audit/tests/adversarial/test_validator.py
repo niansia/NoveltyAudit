@@ -625,7 +625,7 @@ def test_sensitivity_checked_policy_cannot_swap_in_an_undocumented_threshold(val
     report = deepcopy(valid_report)
     report["search"]["bridge_policy"]["high_citation_threshold"] = 999
     errors = validate_report(report)
-    assert any("documented v0.3.1 operational guard" in error for error in errors)
+    assert any("documented v0.3.2 operational guard" in error for error in errors)
 
 
 def test_declared_calibration_policy_requires_structured_provenance(valid_report):

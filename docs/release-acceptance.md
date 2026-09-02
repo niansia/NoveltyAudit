@@ -22,7 +22,7 @@ Required before recommending a public beta:
 - The Skill follows the Agent Skills specification, declares runtime compatibility, publishes English and Traditional Chinese documentation, and states its legal boundary.
 - The distributable ZIP contains the complete Apache-2.0 `LICENSE`, and the tag workflow cannot publish until clean ZIP installation succeeds on GitHub-hosted Ubuntu and macOS.
 
-The locally enforceable P0 gates are implemented in schema version 0.3.1 and guarded by offline adversarial tests. Host-agent report assembly uses a fixed three-attempt gate bound to the immutable audit/claim/freeze/cutoff identity; cross-audit state reuse is rejected, and invalid final output becomes terminal `PARTIAL` with an `INCONCLUSIVE` conclusion cap.
+The locally enforceable P0 gates are implemented in schema version 0.3.2 and guarded by offline adversarial tests. Host-agent report assembly uses a fixed three-attempt gate bound to the immutable audit/claim/freeze/cutoff identity; cross-audit state reuse is rejected, and invalid final output becomes terminal `PARTIAL` with an `INCONCLUSIVE` conclusion cap.
 
 ## P1 — evidence that the product works
 

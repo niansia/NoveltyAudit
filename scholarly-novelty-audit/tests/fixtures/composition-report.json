@@ -1,15 +1,15 @@
 {
-  "schema_version": "0.3.1",
+  "schema_version": "0.3.2",
   "audit_id": "fixture-composition-001",
   "generated_at": "2026-08-27T08:00:00Z",
   "candidate_ids": ["A", "B", "C"],
   "run_manifest": {
-    "tool_version": "0.3.1",
+    "tool_version": "0.3.2",
     "config_hash": "sha256:36bb7e368e4466c9cc404644a69e694247eaba8af33570baf8cb6efa51ae045d",
     "cutoff": "2025-09-18",
     "domain": "computer science",
     "model_name": "host-agent-fixture",
-    "prompt_version": "0.3.1",
+    "prompt_version": "0.3.2",
     "retrieval_started_at": "2026-08-27T07:10:00Z",
     "retrieval_completed_at": "2026-08-27T07:18:00Z",
     "candidate_snapshot_hash": "sha256:b2fcbb781dd1bff5ce464b3e5df9739ed4a5f8a64417ab91e1a734a65b5edf90",

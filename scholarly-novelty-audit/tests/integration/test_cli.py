@@ -80,6 +80,7 @@ def test_report_attempt_cli_machine_binds_fake_runtime_before_complete(valid_rep
     bound_report = json.loads(bound.read_text(encoding="utf-8"))
     payload = json.loads(state.read_text(encoding="utf-8"))
     assert bound_report["run_manifest"]["runtime_environment"] == runtime_environment()
+    assert bound_report["run_manifest"]["tool_version"] == "0.3.2"
     assert payload["status"] == "COMPLETE"
     assert payload["next_action"] == "EXPORT_MACHINE_BOUND_REPORT"
     assert payload["runtime_binding"] == RUNTIME_BINDING

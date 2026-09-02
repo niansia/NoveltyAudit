@@ -23,6 +23,7 @@ def runtime_environment() -> dict[str, Any]:
 
 
 RUNTIME_BINDING = "MACHINE_INJECTED_BEFORE_VALIDATION_AND_HASH"
+TOOL_VERSION = "0.3.2"
 
 
 def bind_runtime_environment(report: dict[str, Any]) -> dict[str, Any]:
@@ -34,6 +35,7 @@ def bind_runtime_environment(report: dict[str, Any]) -> dict[str, Any]:
         manifest = dict(manifest)
     actual = runtime_environment()
     manifest["runtime_environment"] = actual
+    manifest["tool_version"] = TOOL_VERSION
     report["run_manifest"] = manifest
     return actual
 

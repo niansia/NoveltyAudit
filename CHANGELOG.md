@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 - 2026-09-02 — Historical arXiv version safety
 
 - Pin strict historical arXiv full-text evidence to the latest verified version available at or before the cutoff. Complete version metadata is resolved through versioned arXiv API IDs; incomplete histories and redirects to unversioned/current PDFs now fail closed.
 - Preserve arXiv version numbers, exact version dates, versioned PDF URLs, and version-history metadata across normalization and deduplication.
