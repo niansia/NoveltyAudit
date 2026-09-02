@@ -1,0 +1,135 @@
+name: Harden arXiv historical-version validation
+
+on:
+  push:
+    branches: ["fix/arxiv-historical-version-lock"]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Apply validator hardening and regression tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scholarly-novelty-audit/scripts/schema_validation.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''        paper_arxiv_id = normalize_arxiv_id(paper.get("arxiv_id"))
+                  identity = _arxiv_pdf_identity(acquisition.get("source_url"))
+                  if not paper_arxiv_id or identity is None:
+                      continue
+          
+                  path = f"fulltext_acquisitions.{index}"
+          '''
+          new = '''        paper_arxiv_id = normalize_arxiv_id(paper.get("arxiv_id"))
+                  if not paper_arxiv_id:
+                      continue
+          
+                  path = f"fulltext_acquisitions.{index}"
+                  identity = _arxiv_pdf_identity(acquisition.get("source_url"))
+                  if identity is None:
+                      errors.append(
+                          f"schema {path}.source_url: strict historical arXiv evidence requires an exact versioned arXiv PDF"
+                      )
+                      continue
+          '''
+          if old not in text:
+              raise SystemExit("arXiv source validation target not found")
+          text = text.replace(old, new, 1)
+
+          old = '''            elif method == "LOCAL_LATEST_VERSION_METADATA":
+                          if paper.get("arxiv_latest_version_verified") is not True:
+                              errors.append(f"schema {path}.version_selection_method: local latest version was not independently verified")
+                          if paper.get("arxiv_version") != source_version:
+                              errors.append(f"schema {path}.arxiv_version: local selection does not match the verified latest paper version")
+          '''
+          new = '''            elif method == "LOCAL_LATEST_VERSION_METADATA":
+                          if paper.get("arxiv_latest_version_verified") is not True:
+                              errors.append(f"schema {path}.version_selection_method: local latest version was not independently verified")
+                          if paper.get("arxiv_version") != source_version:
+                              errors.append(f"schema {path}.arxiv_version: local selection does not match the verified latest paper version")
+                          if source_version != recomputed:
+                              errors.append(f"schema {path}.arxiv_version: is not the latest verified version at or before the cutoff")
+          '''
+          if old not in text:
+              raise SystemExit("local version recomputation target not found")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+          cat >> scholarly-novelty-audit/tests/unit/test_arxiv_historical_versions.py <<'PY'
+
+
+          def test_schema_guard_rejects_non_arxiv_source_for_strict_arxiv_evidence():
+              from schema_validation import validate_historical_arxiv_acquisitions
+
+              errors = validate_historical_arxiv_acquisitions(historical_report_acquisition(
+                  source_url="https://publisher.example/paper.pdf",
+              ))
+
+              assert any("requires an exact versioned arXiv PDF" in error for error in errors)
+
+
+          def test_schema_guard_recomputes_local_selection_from_recorded_versions():
+              from schema_validation import validate_historical_arxiv_acquisitions
+
+              report = historical_report_acquisition(
+                  source_url="https://arxiv.org/pdf/1706.03762v2",
+                  historical_cutoff="2020-06-01",
+                  arxiv_version=2,
+                  arxiv_version_date="2019-01-15",
+                  version_selection_method="LOCAL_LATEST_VERSION_METADATA",
+                  arxiv_version_history=[
+                      {
+                          "version": 2,
+                          "identifier": "1706.03762v2",
+                          "submitted_at": "2019-01-15",
+                          "pdf_url": "https://arxiv.org/pdf/1706.03762v2",
+                          "verified": True,
+                      },
+                      {
+                          "version": 3,
+                          "identifier": "1706.03762v3",
+                          "submitted_at": "2020-01-01",
+                          "pdf_url": "https://arxiv.org/pdf/1706.03762v3",
+                          "verified": True,
+                      },
+                  ],
+                  arxiv_version_history_complete=False,
+              )
+              report["input"]["cutoff"] = "2020-06-01"
+              report["papers"][0]["cutoff"] = "2020-06-01"
+              report["papers"][0]["arxiv_version"] = 2
+              errors = validate_historical_arxiv_acquisitions(report)
+
+              assert any("not the latest verified version" in error for error in errors)
+          PY
+      - name: Run complete validation
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pip install -r scholarly-novelty-audit/requirements.txt
+          python -m pytest scholarly-novelty-audit/tests -q
+          python scholarly-novelty-audit/scripts/cli.py --help
+          python scholarly-novelty-audit/scripts/secret_scan.py .
+          git diff --check
+      - name: Commit validated hardening
+        shell: bash
+        run: |
+          git rm .github/workflows/harden-arxiv-history-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test: harden arXiv historical-version validation"
+          git push origin HEAD:fix/arxiv-historical-version-lock
