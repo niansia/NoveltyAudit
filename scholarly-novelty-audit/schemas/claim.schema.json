@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/v0.3.1/claim.schema.json",
-  "x-schema-version": "0.3.1",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3.2/claim.schema.json",
+  "x-schema-version": "0.3.2",
   "title": "NoveltyAudit Claim Map",
   "type": "object",
   "required": ["claim_id", "claim_text", "frozen_before_retrieval", "frozen_at", "freeze_hash", "facets"],

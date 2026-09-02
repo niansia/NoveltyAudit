@@ -412,7 +412,7 @@ def request_json(
     if params:
         url += ("&" if "?" in url else "?") + urlencode(params)
     payload = json.dumps(body).encode("utf-8") if body is not None else None
-    request_headers = {"User-Agent": "NoveltyAudit/0.3.1 bridge-base-rate"} | (headers or {})
+    request_headers = {"User-Agent": "NoveltyAudit/0.3.2 bridge-base-rate"} | (headers or {})
     if payload is not None:
         request_headers["Content-Type"] = "application/json"
     for attempt in range(attempts):

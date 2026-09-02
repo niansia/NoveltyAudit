@@ -7,15 +7,15 @@ Build the installable runtime ZIP with the allowlist-based builder. It includes 
 ```bash
 python tools/build_runtime_bundle.py \
   --skill scholarly-novelty-audit \
-  --output dist/scholarly-novelty-audit-v0.3.1.zip
+  --output dist/scholarly-novelty-audit-v0.3.2.zip
 ```
 
 If a complete source archive is also desired for developers, create it only from tracked Git content:
 
 ```bash
-git archive --format=zip --prefix=NoveltyAudit-v0.3.1/ --output=NoveltyAudit-v0.3.1.zip v0.3.1
+git archive --format=zip --prefix=NoveltyAudit-v0.3.2/ --output=NoveltyAudit-v0.3.2.zip v0.3.2
 ```
 
 Never publish an archive made directly from the working directory. It may contain ignored caches, temporary collision scans, PDF renders, smoke-test output, or other local material. Upload the runtime ZIP for skill installation and the source archive only as a separate developer artifact.
 
-For a tagged release, push `main` first and then push the annotated `v0.3.1` tag. The release workflow first requires clean runtime installation on both GitHub-hosted Ubuntu and macOS, then reruns the complete test suite, validates the Agent Skill with `skills-ref`, rebuilds the deterministic runtime ZIP, verifies its embedded `LICENSE` and checksum, and creates the GitHub Release with only the runtime ZIP and SHA-256 sidecar. Do not upload the local development RAR or the metadata-only wheel.
+For a tagged release, push `main` first and then push the annotated `v0.3.2` tag. The release workflow first requires clean runtime installation on both GitHub-hosted Ubuntu and macOS, then reruns the complete test suite, validates the Agent Skill with `skills-ref`, rebuilds the deterministic runtime ZIP, verifies its embedded `LICENSE` and checksum, and creates the GitHub Release with only the runtime ZIP and SHA-256 sidecar. Do not upload the local development RAR or the metadata-only wheel.

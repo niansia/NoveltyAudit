@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://noveltyaudit.dev/schemas/v0.3.1/report.schema.json",
-  "x-schema-version": "0.3.1",
+  "$id": "https://noveltyaudit.dev/schemas/v0.3.2/report.schema.json",
+  "x-schema-version": "0.3.2",
   "title": "NoveltyAudit Report",
   "type": "object",
   "required": ["schema_version", "audit_id", "generated_at", "candidate_ids", "run_manifest", "input", "author_bibliography", "claim_map", "verdict", "papers", "fulltext_acquisitions", "evidence", "top_killers", "minimal_prior_sets", "bridges", "landscape_bridges", "criticality_sensitivity", "ancestor_terms", "residual_novelty", "defensible_rewrite", "search", "excluded", "audit_log"],
   "properties": {
-    "schema_version": {"const": "0.3.1"},
+    "schema_version": {"const": "0.3.2"},
     "audit_id": {"type": "string", "minLength": 1},
     "generated_at": {"type": "string", "format": "date-time"},
     "candidate_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
@@ -14,7 +14,7 @@
       "type": "object",
       "required": ["tool_version", "config_hash", "cutoff", "domain", "model_name", "prompt_version", "retrieval_started_at", "retrieval_completed_at", "candidate_snapshot_hash", "provider_endpoints", "runtime_environment"],
       "properties": {
-        "tool_version": {"const": "0.3.1"},
+        "tool_version": {"const": "0.3.2"},
         "config_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
         "cutoff": {"type": "string", "format": "date"},
         "domain": {"type": "string", "minLength": 1},

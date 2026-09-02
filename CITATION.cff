@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If NoveltyAudit helps your research workflow, please cite this repository."
 title: "NoveltyAudit: Composition-aware Scholarly Novelty Audit"
 type: software
-version: 0.3.1
-date-released: 2026-08-28
+version: 0.3.2
+date-released: 2026-09-02
 authors:
   - name: "NoveltyAudit contributors"
 license: Apache-2.0

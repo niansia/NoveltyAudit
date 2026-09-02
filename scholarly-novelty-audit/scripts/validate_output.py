@@ -150,7 +150,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         return errors
 
     verdict = report["verdict"]
-    if report.get("schema_version") != "0.3.1":
+    if report.get("schema_version") != "0.3.2":
         errors.append(f"unsupported schema_version: {report.get('schema_version')}")
     if not str(report.get("audit_id") or "").strip():
         errors.append("audit_id must be non-empty")
@@ -333,7 +333,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         or bridge_policy.get("source") != DEFAULT_BRIDGE_POLICY_SOURCE
         or policy_evidence != DEFAULT_BRIDGE_POLICY_EVIDENCE
     ):
-        errors.append("SENSITIVITY_CHECKED bridge policy must use the documented v0.3.1 operational guard")
+        errors.append("SENSITIVITY_CHECKED bridge policy must use the documented v0.3.2 operational guard")
     if bridge_policy_status == "CALIBRATION_DECLARED" and (
         not isinstance(policy_evidence.get("dataset"), str)
         or not policy_evidence.get("dataset", "").strip()
@@ -353,7 +353,7 @@ def validate_report(report: dict[str, Any]) -> list[str]:
     for dependency in ("jsonschema", "pypdf"):
         if not isinstance(dependencies.get(dependency), str) or not dependencies.get(dependency, "").strip():
             errors.append(f"run_manifest.runtime_environment missing {dependency} version")
-    if manifest.get("tool_version") != "0.3.1":
+    if manifest.get("tool_version") != "0.3.2":
         errors.append("run_manifest.tool_version must match this validator version")
     if manifest.get("cutoff") != cutoff:
         errors.append("run_manifest.cutoff disagrees with input.cutoff")

@@ -17,7 +17,7 @@ Snapshot date: 2026-08-27. This is a positioning review, not a claim that adjace
 
 ## Collision assessment
 
-The generic label “novelty audit” is crowded. Version 0.3.1 therefore distributes the narrower `scholarly-novelty-audit` skill and does not market “LLM checks whether your paper is novel” as its differentiation. The defensible product wedge is the combined invariant set:
+The generic label “novelty audit” is crowded. Version 0.3.2 therefore distributes the narrower `scholarly-novelty-audit` skill and does not market “LLM checks whether your paper is novel” as its differentiation. The defensible product wedge is the combined invariant set:
 
 1. frozen atomic claim facets;
 2. evidence-bound Minimal Prior Set of at most three papers;

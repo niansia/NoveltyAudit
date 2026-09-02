@@ -1,0 +1,75 @@
+name: Publish NoveltyAudit v0.3.2
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  clean-runtime-install:
+    if: "${{ startsWith(github.event.head_commit.message, 'release: v0.3.2') }}"
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.2.zip
+      - run: python -m zipfile -e dist/scholarly-novelty-audit-v0.3.2.zip "$RUNNER_TEMP/noveltyaudit-runtime"
+      - run: python -m venv "$RUNNER_TEMP/noveltyaudit-venv"
+      - run: >-
+          "$RUNNER_TEMP/noveltyaudit-venv/bin/python"
+          -m pip install
+          -r "$RUNNER_TEMP/noveltyaudit-runtime/scholarly-novelty-audit/requirements.txt"
+      - run: >-
+          "$RUNNER_TEMP/noveltyaudit-venv/bin/python"
+          "$RUNNER_TEMP/noveltyaudit-runtime/scholarly-novelty-audit/scripts/cli.py"
+          --help
+
+  release:
+    if: "${{ startsWith(github.event.head_commit.message, 'release: v0.3.2') }}"
+    needs: clean-runtime-install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip pytest
+      - run: python -m pip install -r scholarly-novelty-audit/requirements.txt
+      - run: python -m pytest scholarly-novelty-audit/tests -q
+      - run: python -m pip install "skills-ref @ git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
+      - run: skills-ref validate ./scholarly-novelty-audit
+      - run: python tools/build_runtime_bundle.py --skill scholarly-novelty-audit --output dist/scholarly-novelty-audit-v0.3.2.zip
+      - run: python -c "import zipfile; archive=zipfile.ZipFile('dist/scholarly-novelty-audit-v0.3.2.zip'); assert archive.read('scholarly-novelty-audit/LICENSE') == open('LICENSE','rb').read()"
+      - run: sha256sum --check scholarly-novelty-audit-v0.3.2.zip.sha256
+        working-directory: dist
+      - name: Create annotated tag
+        shell: bash
+        run: |
+          if git rev-parse -q --verify refs/tags/v0.3.2 >/dev/null; then
+            echo "v0.3.2 already exists" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v0.3.2 -m "NoveltyAudit v0.3.2 — Alpha"
+          git push origin refs/tags/v0.3.2
+      - name: Publish prerelease
+        run: >-
+          gh release create "v0.3.2"
+          "dist/scholarly-novelty-audit-v0.3.2.zip"
+          "dist/scholarly-novelty-audit-v0.3.2.zip.sha256"
+          --verify-tag
+          --prerelease
+          --generate-notes
+          --title "NoveltyAudit v0.3.2 — Alpha"
+        env:
+          GH_TOKEN: ${{ github.token }}

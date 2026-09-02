@@ -27,7 +27,7 @@ from normalize_paper import normalize_arxiv_id, split_arxiv_id
 from providers.arxiv import ArxivProvider
 
 
-USER_AGENT = "NoveltyAudit/0.3.1"
+USER_AGENT = "NoveltyAudit/0.3.2"
 ARXIV_HOSTS = {"arxiv.org", "www.arxiv.org", "export.arxiv.org"}
 ARXIV_VERSION_LOCK = "LATEST_VERIFIED_VERSION_AT_OR_BEFORE_CUTOFF"
 ArxivVersionResolver = Callable[[str, int | None], list[dict[str, Any]]]
